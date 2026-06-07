@@ -1,0 +1,421 @@
+/* Code blocks */
+.message-content pre {
+    background: #2d2d2d;
+    border-radius: 8px;
+    padding: 2.5rem 1rem 1rem 1rem;
+    overflow-x: auto;
+    margin: 1rem 0;
+    border: 1px solid var(--border-color);
+    position: relative;
+}
+
+.message-content code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 13px;
+}
+
+.message-content pre code {
+    background: transparent;
+    padding: 0;
+    color: #cccccc;
+}
+
+/* Code block copy button styles */
+.code-copy-btn {
+    position: absolute !important;
+    top: 8px !important;
+    right: 8px !important;
+    z-index: 10 !important;
+    padding: 4px 8px !important;
+    font-size: 12px !important;
+    opacity: 0.7 !important;
+    transition: opacity 0.2s ease !important;
+    background: var(--bg-tertiary) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-secondary) !important;
+    border-radius: 4px !important;
+}
+
+.code-copy-btn:hover {
+    opacity: 1 !important;
+    background: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--primary-color) !important;
+}
+
+.code-copy-btn.text-success {
+    color: var(--success-color) !important;
+    border-color: var(--success-color) !important;
+}
+
+/* Hover effect for code blocks to show copy button */
+.message-content pre:hover .code-copy-btn {
+    opacity: 1 !important;
+}
+
+/* ENHANCED: Split-view Code Panel Styles with Fullscreen Support */
+
+/* When code panel is open, adjust main layout */
+.app-container.code-panel-open {
+    display: grid;
+    grid-template-columns: 1fr 50%;
+    transition: grid-template-columns 0.3s ease;
+}
+
+.app-container.code-panel-open .main-content {
+    overflow: hidden;
+}
+
+.app-container.code-panel-open .sidebar.collapsed {
+    transform: translateX(-100%);
+}
+
+/* ENHANCED: Code panel with split view and fullscreen support */
+.code-panel {
+    position: fixed;
+    top: 56px; /* Below navbar */
+    right: 0;
+    width: 50%;
+    height: calc(100vh - 56px);
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border-color);
+    z-index: 1060;
+    display: flex;
+    flex-direction: column;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+    transform: translateX(100%);
+    transition: transform 0.3s ease, width 0.3s ease, height 0.3s ease, top 0.3s ease;
+}
+
+.code-panel.show {
+    transform: translateX(0);
+}
+
+/* NEW: Fullscreen mode for code panel */
+.code-panel.fullscreen {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100vh !important;
+    z-index: 2000 !important;
+    transform: translateX(0) !important;
+}
+
+/* ENHANCED: When panel opens, hide sidebar automatically and adjust layout */
+.code-panel.show ~ .app-container .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+}
+
+.code-panel.show ~ .app-container .main-content {
+    margin-left: 0;
+    width: 50%;
+    transition: width 0.3s ease;
+}
+
+.code-panel-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 60px;
+    flex-shrink: 0;
+}
+
+.code-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.code-panel-title i {
+    color: var(--warning-color);
+    font-size: 1.1rem;
+}
+
+.code-panel-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.code-panel-content {
+    flex: 1;
+    overflow: auto;
+    padding: 0;
+    background: var(--bg-primary);
+}
+
+.code-panel-content pre {
+    margin: 0;
+    height: 100%;
+    border-radius: 0;
+    background: var(--bg-primary);
+    border: none;
+    padding: 1.5rem;
+    overflow: auto;
+}
+
+.code-panel-content code {
+    font-size: 14px;
+    line-height: 1.6;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+}
+
+/* Code block buttons in messages */
+.code-block-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    z-index: 10;
+}
+
+.code-block-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    opacity: 0.7;
+}
+
+.code-block-btn:hover {
+    opacity: 1;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-color: var(--primary-color);
+}
+
+.code-block-btn.btn-view {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.code-block-btn.btn-view:hover {
+    background: #0056b3;
+}
+
+/* Enhanced message code blocks */
+.message-content pre {
+    position: relative;
+    margin: 1rem 0;
+}
+
+.message-content pre.large-code {
+    max-height: 300px;
+    overflow: hidden;
+    position: relative;
+}
+
+.message-content pre.large-code::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: linear-gradient(transparent, var(--bg-primary));
+    pointer-events: none;
+}
+
+.code-block-overlay {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 11;
+}
+
+.code-block-overlay:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+/* ENHANCED: Split view adjustments */
+.app-container.split-view {
+    display: flex;
+    height: calc(100vh - 56px);
+}
+
+.app-container.split-view .main-content {
+    width: 50%;
+    flex-shrink: 0;
+}
+
+.app-container.split-view .sidebar {
+    display: none; /* Hide sidebar in split view */
+}
+
+.app-container.split-view .code-panel {
+    position: relative;
+    top: 0;
+    right: 0;
+    width: 50%;
+    height: 100%;
+    transform: translateX(0);
+    border-left: 2px solid var(--primary-color);
+}
+
+/* Enhanced code block ID badges */
+.artifact-id-badge.artifact-id-code {
+    position: absolute !important;
+    top: 8px !important;
+    left: 8px !important;
+    z-index: 12 !important;
+    padding: 3px 7px !important;
+    font-size: 11px !important;
+    background: rgba(0, 0, 0, 0.8) !important;
+    color: #fff !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    user-select: none !important;
+    transition: all 0.2s ease !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.artifact-id-badge.artifact-id-code:hover {
+    background: rgba(13, 110, 253, 0.9) !important;
+    transform: scale(1.05) !important;
+    border-color: rgba(13, 110, 253, 0.8) !important;
+}
+
+.artifact-id-badge.artifact-id-code:active {
+    transform: scale(0.98) !important;
+}
+
+/* Resizer for split view */
+.split-view-resizer {
+    width: 4px;
+    background: var(--border-color);
+    cursor: col-resize;
+    position: relative;
+    transition: background-color 0.2s ease;
+}
+
+.split-view-resizer:hover {
+    background: var(--primary-color);
+}
+
+.split-view-resizer::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 40px;
+    background: var(--bg-tertiary);
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .code-panel {
+        width: 100%;
+        right: 0;
+        transform: translateX(100%);
+        z-index: 1060;
+    }
+    
+    .code-panel.show {
+        transform: translateX(0);
+    }
+    
+    .code-panel-content pre {
+        padding: 1rem;
+        font-size: 12px;
+    }
+    
+    .code-block-actions {
+        opacity: 1;
+    }
+    
+    .artifact-id-badge.artifact-id-code {
+        left: 4px;
+        font-size: 10px;
+        padding: 2px 5px !important;
+    }
+    
+    /* No split view on mobile - full overlay instead */
+    .app-container.split-view {
+        display: block;
+    }
+    
+    .app-container.split-view .main-content {
+        width: 100%;
+    }
+    
+    .app-container.split-view .code-panel {
+        position: fixed;
+        width: 100%;
+        height: calc(100vh - 56px);
+        top: 56px;
+        z-index: 1060;
+    }
+}
+
+/* Animation for smooth transitions */
+@keyframes slideInFromRight {
+    from {
+        transform: translateX(100%);
+    }
+    to {
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideOutToRight {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(100%);
+    }
+}
+
+.code-panel.opening {
+    animation: slideInFromRight 0.3s ease forwards;
+}
+
+.code-panel.closing {
+    animation: slideOutToRight 0.3s ease forwards;
+}
+
+/* Focus trap for accessibility */
+.code-panel:focus-within {
+    outline: none;
+}
+
+.code-panel .code-panel-header button:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}

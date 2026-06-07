@@ -1,0 +1,114 @@
+services:
+  internal-ollama:
+    build: ./ollama
+    container_name: internal-ollama
+    privileged: true
+    environment:
+      - OLLAMA_HOST=${OLLAMA_HOST}
+      - OLLAMA_ORIGINS=${OLLAMA_ORIGINS}
+      - OLLAMA_MODELS=${OLLAMA_MODELS}
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL}
+      - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS}
+      - OLLAMA_FLASH_ATTENTION=${OLLAMA_FLASH_ATTENTION}
+      - OLLAMA_MMAP=${OLLAMA_MMAP}
+      - OLLAMA_USE_MMAP=${OLLAMA_USE_MMAP}
+      - OLLAMA_NOPRUNE=${OLLAMA_NOPRUNE}
+      - OLLAMA_GPU_LAYERS=${OLLAMA_GPU_LAYERS}
+      - OLLAMA_NUM_THREAD=${OLLAMA_NUM_THREAD}
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE}
+      - MODEL_NAME=${MODEL_NAME}
+      - MODEL_GGUF_PATH=${MODEL_GGUF_PATH}
+      - MODEL_TEMPERATURE=${MODEL_TEMPERATURE}
+      - MODEL_TOP_P=${MODEL_TOP_P}
+      - MODEL_TOP_K=${MODEL_TOP_K}
+      - MODEL_MIN_P=${MODEL_MIN_P}
+      - MODEL_REPEAT_PENALTY=${MODEL_REPEAT_PENALTY}
+      - MODEL_REPEAT_LAST_N=${MODEL_REPEAT_LAST_N}
+      - MODEL_NUM_CTX=${MODEL_NUM_CTX}
+      - MODEL_NUM_PREDICT=${MODEL_NUM_PREDICT}
+      - MODEL_SEED=${MODEL_SEED}
+      - OLLAMA_MAX_RETRIES=${OLLAMA_MAX_RETRIES}
+      - OLLAMA_RETRY_INTERVAL=${OLLAMA_RETRY_INTERVAL}
+      - MODELFILE_PATH=${MODELFILE_PATH}
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./volumes/ollama/models:/root/.ollama/models
+    networks:
+      - internal-devstral-network
+    deploy:
+      resources:
+        limits:
+          cpus: ${OLLAMA_CPU}
+          memory: ${OLLAMA_MEMORY}
+        reservations:
+          cpus: ${OLLAMA_CPU}
+          memory: ${OLLAMA_MEMORY}
+          devices:
+            - capabilities: [gpu]
+    restart: unless-stopped
+
+  internal-redis:
+    build: ./redis
+    container_name: internal-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./volumes/redis/redis_data:/data
+      - ./volumes/redis/redis_logs:/var/log/redis
+    networks:
+      - internal-devstral-network
+    deploy:
+      resources:
+        limits:
+          cpus: ${REDIS_CPU}
+          memory: ${REDIS_MEMORY}
+        reservations:
+          cpus: ${REDIS_CPU}
+          memory: ${REDIS_MEMORY}
+    restart: unless-stopped
+
+  internal-nginx:
+    build: ./nginx
+    container_name: internal-nginx
+    ports:
+      - "443:443"
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - MODEL_URL=${MODEL_URL}
+      - MODEL_NAME=${MODEL_NAME}
+      - MODEL_GGUF_PATH=${MODEL_GGUF_PATH}
+      - MODEL_TEMPERATURE=${MODEL_TEMPERATURE}
+      - MODEL_TOP_P=${MODEL_TOP_P}
+      - MODEL_TOP_K=${MODEL_TOP_K}
+      - MODEL_MIN_P=${MODEL_MIN_P}
+      - MODEL_NUM_CTX=${MODEL_NUM_CTX}
+      - MODEL_NUM_PREDICT=${MODEL_NUM_PREDICT}
+      - MODEL_REPEAT_PENALTY=${MODEL_REPEAT_PENALTY}
+      - MODEL_REPEAT_LAST_N=${MODEL_REPEAT_LAST_N}
+      - MODEL_SEED=${MODEL_SEED}
+      - OLLAMA_GPU_LAYERS=${OLLAMA_GPU_LAYERS}
+      - OLLAMA_NUM_THREAD=${OLLAMA_NUM_THREAD}
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE}
+      - ALLOWED_DOMAINS=${ALLOWED_DOMAINS}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - LOG_FORMAT=${LOG_FORMAT}
+    volumes:
+      - ./volumes/nginx/nginx_cache:/var/cache/nginx
+      - ./volumes/nginx/nginx_logs:/var/log/nginx
+    networks:
+      - internal-devstral-network
+    deploy:
+      resources:
+        limits:
+          cpus: ${NGINX_CPU}
+          memory: ${NGINX_MEMORY}
+        reservations:
+          cpus: ${NGINX_CPU}
+          memory: ${NGINX_MEMORY}
+    restart: unless-stopped
+
+networks:
+  internal-devstral-network:
+    driver: bridge

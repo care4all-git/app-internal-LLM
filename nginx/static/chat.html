@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Internal Chat - AI Assistant</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Syntax highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+    
+    <!-- Modular CSS files -->
+    <link href="/static/css/chat_core.css" rel="stylesheet">
+    <link href="/static/css/chat_sidebar.css" rel="stylesheet">
+    <link href="/static/css/chat_messages.css" rel="stylesheet">
+    <link href="/static/css/chat_code.css" rel="stylesheet">
+    <link href="/static/css/chat_input.css" rel="stylesheet">
+    <link href="/static/css/chat_artifacts.css" rel="stylesheet">
+    
+    <!-- Markdown parser -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <div class="d-flex align-items-center">
+                <!-- Sidebar toggle -->
+                <button class="btn btn-outline-light btn-sm me-3" id="sidebar-toggle">
+                    <i class="bi bi-list"></i>
+                </button>
+                <span class="navbar-brand mb-0">
+                    <i class="bi bi-lightning-charge-fill text-primary"></i> 
+                    Internal Chat (admin1)
+                </span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <!-- Current chat title -->
+                <span class="text-light me-3" id="current-chat-title">New Chat</span>
+                <!-- Artifact management -->
+                <div class="artifacts-controls d-flex align-items-center gap-2">
+                    <!-- Small artifacts panel button -->
+                    <button id="artifacts-button" class="btn btn-outline-secondary btn-sm" title="Open Artifacts Panel">
+                        <i class="bi bi-collection"></i>
+                    </button>
+                    <!-- Large Code & AI artifacts button -->
+                    <button id="code-ai-artifacts-button" class="btn btn-primary" title="View Code & AI Artifacts">
+                        <i class="bi bi-code-slash me-2"></i>
+                        View JAI code blocks
+                    </button>
+                </div>
+                <!-- New chat button -->
+                <button class="btn btn-outline-primary btn-sm" onclick="createNewChat()">
+                    <i class="bi bi-plus-circle"></i> New Chat
+                </button>
+                <!-- Clear current chat -->
+                <button class="btn btn-outline-danger btn-sm" onclick="clearCurrentChat()">
+                    <i class="bi bi-trash"></i> Clear
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h6><i class="bi bi-chat-dots"></i> Chat History</h6>
+                <div class="sidebar-actions">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="refreshChatList()" title="Refresh">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteAllChats()" title="Delete All">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Search chats -->
+            <div class="sidebar-search">
+                <input type="text" class="form-control form-control-sm" id="chat-search" placeholder="Search chats...">
+            </div>
+            
+            <!-- Chat list -->
+            <div class="chat-list" id="chat-list">
+                <div class="text-center text-muted p-3">
+                    <i class="bi bi-chat-dots-fill"></i>
+                    <p class="mb-0 mt-2">No chats yet</p>
+                    <small>Start a new conversation</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main chat area -->
+        <div class="main-content">
+            <!-- Chat container -->
+            <div class="chat-container">
+                <!-- Messages area -->
+                <div class="chat-messages" id="chat-messages">
+                    <!-- Welcome message -->
+                    <div id="welcome-prompt" class="welcome-prompt">
+                        <h4><i class="bi bi-chat-dots text-primary"></i> Internal AI Chat</h4>
+                        <p>Direct connection to your Ollama model. Create unlimited conversations.</p>
+                        <div class="text-muted">
+                            <small>💡 <kbd>Enter</kbd> to send • <kbd>Shift+Enter</kbd> for new line • <kbd>📎</kbd> to attach files</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Messages will be dynamically added here -->
+                    <div id="messages-content"></div>
+                </div>
+                
+                <!-- Input area -->
+                <div class="chat-input-container">
+                    <!-- File upload area (hidden by default) -->
+                    <div id="file-upload-area" class="file-upload-area" style="display: none;">
+                        <div class="file-upload-header">
+                            <span><i class="bi bi-paperclip"></i> Attached Files</span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearAllFiles()">
+                                <i class="bi bi-x"></i> Clear All
+                            </button>
+                        </div>
+                        <div id="file-list" class="file-list"></div>
+                    </div>
+                    
+                    <form id="chat-form" class="chat-input-form">
+                        <div class="input-group-container">
+                            <!-- File upload button -->
+                            <button type="button" class="btn btn-outline-secondary attach-btn" id="attach-button" title="Attach files">
+                                <i class="bi bi-paperclip"></i>
+                            </button>
+                            
+                            <!-- Hidden file input -->
+                            <input type="file" id="file-input" multiple accept="*/*" style="display: none;">
+                            
+                            <textarea 
+                                class="form-control chat-input" 
+                                id="chat-input" 
+                                placeholder="Ask anything..." 
+                                rows="1"
+                                required></textarea>
+                            
+                            <button type="submit" class="btn btn-primary btn-send" id="send-button">
+                                <i class="bi bi-send"></i>
+                            </button>
+                            
+                            <button type="button" class="btn btn-danger btn-send" id="stop-button" style="display: none;">
+                                <i class="bi bi-stop"></i>
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <small class="text-muted">
+                            <span id="char-count">0</span> characters
+                            <span id="file-count" style="display: none;"> • <span id="file-count-number">0</span> files</span>
+                        </small>
+                        <small class="text-muted" id="status">Ready</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIXED: Artifact Panel Modal - Removed duplicate search bar -->
+    <div class="modal fade" id="artifactPanelModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-list-ol"></i> Chat Artifacts
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Single search and filter section -->
+                    <div class="artifacts-panel-filters mb-3">
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="bi bi-search"></i>
+                                    </span>
+                                    <input type="text" id="artifact-search" class="form-control" placeholder="Search artifacts by ID or content...">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <select id="artifact-type-filter" class="form-select">
+                                    <option value="">All Types</option>
+                                    <option value="admin">Admin Messages</option>
+                                    <option value="jai">AI Messages</option>
+                                    <option value="code_block">Code Blocks</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stats cards -->
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h6 class="card-title">Total Messages</h6>
+                                    <h4 id="total-messages" class="text-primary">0</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h6 class="card-title">Admin Messages</h6>
+                                    <h4 id="user-messages" class="text-info">0</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h6 class="card-title">JAI Messages</h6>
+                                    <h4 id="ai-messages" class="text-success">0</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h6 class="card-title">Code Blocks</h6>
+                                    <h4 id="code-blocks" class="text-warning">0</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Artifact list -->
+                    <div class="artifact-list" id="artifact-list" style="max-height: 400px; overflow-y: auto;">
+                        <div class="text-center text-muted p-3">
+                            <i class="bi bi-inbox"></i>
+                            <p class="mb-0 mt-2">No artifacts found</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="exportChatArtifacts()">
+                        <i class="bi bi-download"></i> Export All
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Options Modal -->
+    <div class="modal fade" id="chatOptionsModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title">Chat Options</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Rename Chat</label>
+                        <input type="text" class="form-control form-control-sm" id="rename-chat-input" placeholder="Enter new name">
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary btn-sm" onclick="renameChatConfirm()">
+                            <i class="bi bi-pencil"></i> Rename
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="duplicateChat()">
+                            <i class="bi bi-files"></i> Duplicate
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="deleteChatConfirm()">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    
+    <!-- Modular JS files - Load in correct order -->
+    <script src="/static/js/chat_global_functions.js"></script>
+    <script src="/static/js/chat_ollama.js"></script>
+    <script src="/static/js/chat_redis.js"></script>
+    <script src="/static/js/chat_artifacts.js"></script>
+    <script src="/static/js/chat_artifacts_panel.js"></script>
+    <script src="/static/js/chat_core.js"></script>
+    <script src="/static/js/chat_file_upload.js"></script>
+    <script src="/static/js/chat_ui.js"></script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+/* Artifacts buttons styling */
+.artifacts-controls {
+    margin: 0.5rem 0;
+}
+
+#artifacts-button {
+    /* Small, minimal button */
+    padding: 0.375rem 0.5rem;
+    font-size: 0.875rem;
+    border-radius: 0.375rem;
+}
+
+#code-ai-artifacts-button {
+    /* Larger, more prominent button */
+    padding: 0.5rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    border: none;
+    color: white;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+}
+
+#code-ai-artifacts-button:hover {
+    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+}
+
+#code-ai-artifacts-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+}
+
+#code-ai-artifacts-button i {
+    font-size: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .artifacts-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+    
+    #code-ai-artifacts-button {
+        justify-content: center;
+        text-align: center;
+    }
+}

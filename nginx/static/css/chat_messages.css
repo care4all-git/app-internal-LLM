@@ -1,0 +1,209 @@
+/* Messages */
+.message {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 1.5rem;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.message-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.message-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+    font-size: 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+}
+
+.message-ai .message-header {
+    color: var(--primary-color);
+}
+
+.message-ai .message-avatar {
+    color: var(--primary-color);
+}
+
+.message-content {
+    padding: 16px 20px;
+    border-radius: 12px;
+    word-wrap: break-word;
+    line-height: 1.6;
+    font-size: 15px;
+}
+
+.message-user .message-content {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+}
+
+.message-ai .message-content {
+    background: transparent;
+}
+
+/* File attachments in messages */
+.message-files {
+    margin-bottom: 12px;
+}
+
+.message-file-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 6px 10px;
+    margin: 2px 4px 2px 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.message-file-item i {
+    font-size: 14px;
+}
+
+/* Message actions styling */
+.message-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+.message:hover .message-actions {
+    opacity: 1;
+}
+
+.copy-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.copy-btn:hover {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-color: var(--primary-color);
+}
+
+.copy-btn.text-success {
+    color: var(--success-color) !important;
+    border-color: var(--success-color) !important;
+}
+
+/* Streaming cursor */
+.cursor.blink {
+    animation: blink 1s infinite;
+    color: var(--primary-color);
+    font-weight: bold;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+    .main-content {
+        width: 100%;
+    }
+    
+    .chat-messages {
+        padding: 0.75rem;
+    }
+    
+    .welcome-prompt {
+        margin: 1rem;
+        padding: 2rem 1rem;
+    }
+    
+    .message-actions {
+        opacity: 1;
+    }
+}
+
+/* Placeholder message styles - ADD TO chat_messages.css */
+
+/* Placeholder messages styling */
+.placeholder-message {
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+    border-left: 3px solid #007bff;
+    background: rgba(13, 110, 253, 0.05);
+}
+
+.placeholder-message .message-header {
+    opacity: 0.7;
+}
+
+.placeholder-message .message-content {
+    border-radius: 8px;
+    background: rgba(13, 110, 253, 0.05);
+}
+
+.placeholder-message.streaming .message-content:after {
+    content: "▋";
+    animation: blink 1s infinite;
+    color: #007bff;
+    font-weight: bold;
+    margin-left: 2px;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+/* Fade out animation when removing placeholders */
+.placeholder-message.removing {
+    opacity: 0;
+    transform: scale(0.95);
+    transition: all 0.3s ease;
+}
+
+/* Distinguish placeholder from real messages */
+.placeholder-message::before {
+    content: "💭";
+    position: absolute;
+    left: -25px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    opacity: 0.5;
+}
+
+/* Mobile adjustments for placeholders */
+@media (max-width: 768px) {
+    .placeholder-message::before {
+        left: -20px;
+        font-size: 12px;
+    }
+}

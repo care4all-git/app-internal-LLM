@@ -1,2 +1,2 @@
-#  app3.2_dockercompose_LLM-internal
-used locally on nvidia5090
+#  app-LLM-internal
+used locally on a nvidia5090m

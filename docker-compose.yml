@@ -1,51 +1,37 @@
 services:
-  internal-ollama:
-    build: ./ollama
-    container_name: internal-ollama
-    privileged: true
+  internal-vllm:
+    build: ./vllm
+    container_name: internal-vllm
     environment:
-      - OLLAMA_HOST=${OLLAMA_HOST}
-      - OLLAMA_ORIGINS=${OLLAMA_ORIGINS}
-      - OLLAMA_MODELS=${OLLAMA_MODELS}
-      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL}
-      - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS}
-      - OLLAMA_FLASH_ATTENTION=${OLLAMA_FLASH_ATTENTION}
-      - OLLAMA_MMAP=${OLLAMA_MMAP}
-      - OLLAMA_USE_MMAP=${OLLAMA_USE_MMAP}
-      - OLLAMA_NOPRUNE=${OLLAMA_NOPRUNE}
-      - OLLAMA_GPU_LAYERS=${OLLAMA_GPU_LAYERS}
-      - OLLAMA_NUM_THREAD=${OLLAMA_NUM_THREAD}
-      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE}
-      - MODEL_NAME=${MODEL_NAME}
-      - MODEL_GGUF_PATH=${MODEL_GGUF_PATH}
-      - MODEL_TEMPERATURE=${MODEL_TEMPERATURE}
-      - MODEL_TOP_P=${MODEL_TOP_P}
-      - MODEL_TOP_K=${MODEL_TOP_K}
-      - MODEL_MIN_P=${MODEL_MIN_P}
-      - MODEL_REPEAT_PENALTY=${MODEL_REPEAT_PENALTY}
-      - MODEL_REPEAT_LAST_N=${MODEL_REPEAT_LAST_N}
-      - MODEL_NUM_CTX=${MODEL_NUM_CTX}
-      - MODEL_NUM_PREDICT=${MODEL_NUM_PREDICT}
-      - MODEL_SEED=${MODEL_SEED}
-      - OLLAMA_MAX_RETRIES=${OLLAMA_MAX_RETRIES}
-      - OLLAMA_RETRY_INTERVAL=${OLLAMA_RETRY_INTERVAL}
-      - MODELFILE_PATH=${MODELFILE_PATH}
+      - VLLM_MODEL=${VLLM_MODEL}
+      - VLLM_DTYPE=${VLLM_DTYPE:-auto}
+      - VLLM_QUANTIZATION=${VLLM_QUANTIZATION:-}
+      - VLLM_GPU_MEM_UTIL=${VLLM_GPU_MEM_UTIL:-0.90}
+      - VLLM_MAX_MODEL_LEN=${VLLM_MAX_MODEL_LEN:-32768}
+      - VLLM_TENSOR_PARALLEL=${VLLM_TENSOR_PARALLEL:-1}
+      - VLLM_MAX_NUM_SEQS=${VLLM_MAX_NUM_SEQS:-256}
+      - VLLM_SERVED_NAME=${VLLM_SERVED_NAME:-}
+      - VLLM_ENABLE_TOOLS=${VLLM_ENABLE_TOOLS:-false}
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN:-}
     ports:
-      - "11434:11434"
+      - "8000:8000"
     volumes:
-      - ./volumes/ollama/models:/root/.ollama/models
+      # Cache downloaded HF models so restarts don't re-download
+      - vllm_hf_cache:/root/.cache/huggingface
     networks:
       - internal-devstral-network
     deploy:
       resources:
         limits:
-          cpus: ${OLLAMA_CPU}
-          memory: ${OLLAMA_MEMORY}
+          cpus: ${VLLM_CPU:-4.0}
+          memory: ${VLLM_MEMORY:-28G}
         reservations:
-          cpus: ${OLLAMA_CPU}
-          memory: ${OLLAMA_MEMORY}
+          cpus: ${VLLM_CPU:-4.0}
+          memory: ${VLLM_MEMORY:-28G}
           devices:
-            - capabilities: [gpu]
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     restart: unless-stopped
 
   internal-redis:
@@ -69,36 +55,19 @@ services:
     restart: unless-stopped
 
   internal-nginx:
-    build: ./nginx
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
     container_name: internal-nginx
     ports:
       - "443:443"
-    environment:
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PORT=${REDIS_PORT}
-      - MODEL_URL=${MODEL_URL}
-      - MODEL_NAME=${MODEL_NAME}
-      - MODEL_GGUF_PATH=${MODEL_GGUF_PATH}
-      - MODEL_TEMPERATURE=${MODEL_TEMPERATURE}
-      - MODEL_TOP_P=${MODEL_TOP_P}
-      - MODEL_TOP_K=${MODEL_TOP_K}
-      - MODEL_MIN_P=${MODEL_MIN_P}
-      - MODEL_NUM_CTX=${MODEL_NUM_CTX}
-      - MODEL_NUM_PREDICT=${MODEL_NUM_PREDICT}
-      - MODEL_REPEAT_PENALTY=${MODEL_REPEAT_PENALTY}
-      - MODEL_REPEAT_LAST_N=${MODEL_REPEAT_LAST_N}
-      - MODEL_SEED=${MODEL_SEED}
-      - OLLAMA_GPU_LAYERS=${OLLAMA_GPU_LAYERS}
-      - OLLAMA_NUM_THREAD=${OLLAMA_NUM_THREAD}
-      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE}
-      - ALLOWED_DOMAINS=${ALLOWED_DOMAINS}
-      - LOG_LEVEL=${LOG_LEVEL}
-      - LOG_FORMAT=${LOG_FORMAT}
     volumes:
-      - ./volumes/nginx/nginx_cache:/var/cache/nginx
       - ./volumes/nginx/nginx_logs:/var/log/nginx
     networks:
       - internal-devstral-network
+    depends_on:
+      - internal-redis
+      - internal-vllm
     deploy:
       resources:
         limits:
@@ -112,3 +81,7 @@ services:
 networks:
   internal-devstral-network:
     driver: bridge
+
+volumes:
+  vllm_hf_cache:
+    driver: local

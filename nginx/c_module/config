@@ -1,0 +1,21 @@
+ngx_addon_name=ngx_http_chat_module
+HTTP_MODULES="$HTTP_MODULES ngx_http_chat_module"
+NGX_ADDON_SRCS="$NGX_ADDON_SRCS \
+    $ngx_addon_dir/source/ngx_http_chat_module.c \
+    $ngx_addon_dir/source/chat_redis.c \
+    $ngx_addon_dir/source/chat_ollama.c \
+    $ngx_addon_dir/source/chat_sse.c \
+    $ngx_addon_dir/source/chat_utils.c \
+    $ngx_addon_dir/source/chat_models.c \
+    $ngx_addon_dir/source/chat_auth.c \
+    $ngx_addon_dir/source/cjson.c"
+NGX_ADDON_DEPS="$NGX_ADDON_DEPS \
+    $ngx_addon_dir/headers/ngx_http_chat_module.h \
+    $ngx_addon_dir/headers/chat_redis.h \
+    $ngx_addon_dir/headers/chat_ollama.h \
+    $ngx_addon_dir/headers/chat_sse.h \
+    $ngx_addon_dir/headers/chat_utils.h \
+    $ngx_addon_dir/headers/chat_models.h \
+    $ngx_addon_dir/headers/chat_auth.h \
+    $ngx_addon_dir/headers/cJSON.h"
+CORE_LIBS="$CORE_LIBS -lhiredis -lcurl"

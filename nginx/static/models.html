@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Manager - Internal Chat</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+
+    <style>
+        body { background: #0d1117; color: #c9d1d9; min-height: 100vh; }
+        .navbar-brand i { color: #58a6ff; }
+
+        /* Page layout */
+        .page-container { max-width: 1400px; margin: 0 auto; padding: 1.5rem 1rem; }
+
+        /* Section cards */
+        .section-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+        }
+        .section-card .section-header {
+            padding: .85rem 1.25rem;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+            font-weight: 600;
+            font-size: .95rem;
+        }
+        .section-body { padding: 1.25rem; }
+
+        /* Model table */
+        .model-table th { color: #8b949e; font-weight: 500; font-size: .82rem; text-transform: uppercase; }
+        .model-table td { vertical-align: middle; }
+        .model-badge { font-size: .75rem; }
+
+        /* HF search */
+        .hf-card {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: .85rem 1rem;
+            cursor: pointer;
+            transition: border-color .15s;
+        }
+        .hf-card:hover { border-color: #58a6ff; }
+        .hf-card .model-id { font-family: monospace; font-size: .88rem; color: #58a6ff; }
+        .hf-card .meta { font-size: .78rem; color: #8b949e; }
+        .quant-badge { font-size: .68rem; padding: .15rem .4rem; border-radius: 4px; }
+
+        .model-variant-item {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            padding: .6rem .85rem;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            margin-bottom: .5rem;
+        }
+        .model-variant-item .fname { font-family: monospace; font-size: .85rem; flex: 1; }
+        .model-variant-item .fsize { font-size: .78rem; color: #8b949e; min-width: 70px; text-align: right; }
+
+        /* Pull progress */
+        .pull-log {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: .75rem 1rem;
+            font-family: monospace;
+            font-size: .8rem;
+            max-height: 220px;
+            overflow-y: auto;
+            margin-top: .75rem;
+        }
+        .pull-log .line { margin-bottom: .25rem; color: #8b949e; }
+        .pull-log .line.progress { color: #58a6ff; }
+        .pull-log .line.success { color: #3fb950; }
+        .pull-log .line.error   { color: #f85149; }
+
+        /* Config panel */
+        .config-field label { font-size: .82rem; color: #8b949e; margin-bottom: .2rem; }
+        .config-field input { background: #0d1117; border-color: #30363d; color: #c9d1d9; }
+        .config-field input:focus { background: #0d1117; border-color: #58a6ff; color: #c9d1d9; box-shadow: 0 0 0 2px rgba(88,166,255,.2); }
+
+        /* Nav pills */
+        .nav-page { border-bottom: 1px solid #30363d; margin-bottom: 1.5rem; }
+        .nav-page .nav-link { color: #8b949e; border: none; border-radius: 0; padding: .65rem 1rem; border-bottom: 2px solid transparent; }
+        .nav-page .nav-link.active { color: #58a6ff; border-bottom-color: #58a6ff; background: none; }
+        .nav-page .nav-link:hover:not(.active) { color: #c9d1d9; }
+
+        /* Active model highlight */
+        .active-model-row { background: rgba(88,166,255,.06) !important; }
+        .active-model-row td:first-child::before {
+            content: '';
+            display: inline-block;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: #3fb950;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        /* Spinner overlay inside button */
+        .btn .spinner-border { width: 1em; height: 1em; border-width: 2px; }
+    </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-dark bg-dark border-bottom border-secondary">
+    <div class="container-fluid">
+        <div class="d-flex align-items-center gap-3">
+            <span class="navbar-brand mb-0">
+                <i class="bi bi-lightning-charge-fill"></i> Internal Chat
+            </span>
+            <a href="/" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-chat-dots me-1"></i>Chat
+            </a>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-secondary fw-semibold">
+                <i class="bi bi-cpu me-1"></i>Model Manager
+            </span>
+            <button class="btn btn-outline-danger btn-sm" onclick="adminLogout()">
+                <i class="bi bi-box-arrow-right me-1"></i>Logout
+            </button>
+        </div>
+    </div>
+</nav>
+
+<div class="page-container">
+
+    <!-- Page tabs -->
+    <ul class="nav nav-page" id="pageTabs">
+        <li class="nav-item">
+            <a class="nav-link active" href="#" data-tab="installed" onclick="switchTab('installed',this)">
+                <i class="bi bi-collection me-1"></i>Installed Models
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" data-tab="hf" onclick="switchTab('hf',this)">
+                <i class="bi bi-search me-1"></i>HuggingFace Browser
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" data-tab="config" onclick="switchTab('config',this)">
+                <i class="bi bi-gear me-1"></i>Runtime Config
+            </a>
+        </li>
+    </ul>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB 1: Installed Models
+    ════════════════════════════════════════════════════════════ -->
+    <div id="tab-installed">
+
+        <div class="section-card">
+            <div class="section-header">
+                <i class="bi bi-collection text-primary"></i>
+                Installed Ollama Models
+                <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="loadInstalledModels()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+            <div class="section-body">
+                <div id="models-loading" class="text-center py-3 text-secondary">
+                    <div class="spinner-border spinner-border-sm me-2"></div>Loading models...
+                </div>
+                <div id="models-error" class="alert alert-danger d-none"></div>
+                <div id="models-table-wrap" class="d-none">
+                    <table class="table table-dark table-hover model-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Model Name</th>
+                                <th>Size</th>
+                                <th>Modified</th>
+                                <th>Format</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="models-tbody"></tbody>
+                    </table>
+                </div>
+                <div id="models-empty" class="text-center py-4 text-secondary d-none">
+                    No models installed. Use the HuggingFace Browser to pull one.
+                </div>
+            </div>
+        </div>
+
+        <!-- "Load model" info panel — shows after user picks a model from HF -->
+        <div class="section-card d-none" id="pull-section">
+            <div class="section-header">
+                <i class="bi bi-lightning-charge text-warning"></i>
+                Load Model into vLLM
+                <button class="btn btn-sm btn-outline-secondary ms-auto" id="pull-dismiss-btn" onclick="dismissPull()">
+                    <i class="bi bi-x"></i> Dismiss
+                </button>
+            </div>
+            <div class="section-body">
+                <div class="alert alert-info mb-3" style="font-size:.88rem;">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>How vLLM loads models:</strong> vLLM downloads and caches models from HuggingFace at
+                    startup. To switch models, set the model ID below, then restart the vLLM container.
+                    The HF cache (<code>volumes/vllm/hf_cache</code>) is preserved between restarts.
+                </div>
+                <div class="d-flex gap-2 align-items-center mb-3">
+                    <span class="text-secondary" style="font-size:.85rem;">Selected model:</span>
+                    <code id="pull-model-name" class="text-info"></code>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary" id="pull-set-active-btn" onclick="setPullModelActive()">
+                        <i class="bi bi-check2-circle me-1"></i>Save as Active Model in Redis
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="copyRestartCmd()">
+                        <i class="bi bi-clipboard me-1"></i>Copy restart command
+                    </button>
+                </div>
+                <div class="pull-log mt-3" id="pull-log" style="display:none;"></div>
+            </div>
+        </div>
+
+    </div><!-- /tab-installed -->
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB 2: HuggingFace Browser
+    ════════════════════════════════════════════════════════════ -->
+    <div id="tab-hf" class="d-none">
+
+        <div class="section-card">
+            <div class="section-header">
+                <i class="bi bi-search text-primary"></i>
+                Search HuggingFace GGUF Models
+            </div>
+            <div class="section-body">
+                <div class="row g-2 align-items-end mb-3">
+                    <div class="col">
+                        <input type="text" class="form-control" id="hf-search-input"
+                               placeholder="e.g. mistral, llama, phi3, qwen2..."
+                               onkeydown="if(event.key==='Enter') doHfSearch()">
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-primary" onclick="doHfSearch()" id="hf-search-btn">
+                            <i class="bi bi-search me-1"></i>Search
+                        </button>
+                    </div>
+                </div>
+
+                <div id="hf-results-loading" class="text-center py-3 text-secondary d-none">
+                    <div class="spinner-border spinner-border-sm me-2"></div>Searching HuggingFace...
+                </div>
+                <div id="hf-results-error" class="alert alert-danger d-none"></div>
+
+                <div id="hf-results-grid" class="row g-2"></div>
+            </div>
+        </div>
+
+        <!-- Model variant picker -->
+        <div class="section-card d-none" id="hf-files-section">
+            <div class="section-header">
+                <i class="bi bi-boxes text-warning"></i>
+                Load
+                <span id="hf-selected-model" class="text-info ms-1 fw-normal font-monospace"></span>
+                <small class="text-secondary fw-normal ms-2">into vLLM</small>
+                <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="closeFilePicker()">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div class="section-body">
+                <div id="hf-files-loading" class="text-center py-3 text-secondary">
+                    <div class="spinner-border spinner-border-sm me-2"></div>Fetching file list...
+                </div>
+                <div id="hf-files-error" class="alert alert-danger d-none"></div>
+                <div id="hf-files-list"></div>
+            </div>
+        </div>
+
+    </div><!-- /tab-hf -->
+
+    <!-- ═══════════════════════════════════════════════════════
+         TAB 3: Runtime Config
+    ════════════════════════════════════════════════════════════ -->
+    <div id="tab-config" class="d-none">
+
+        <div class="row g-3">
+            <!-- Left: config fields -->
+            <div class="col-lg-7">
+                <div class="section-card">
+                    <div class="section-header">
+                        <i class="bi bi-gear text-primary"></i>
+                        Runtime Model Configuration
+                        <small class="text-secondary fw-normal ms-2">(stored in Redis, overrides nginx.conf)</small>
+                    </div>
+                    <div class="section-body">
+                        <div id="config-loading" class="text-center py-3 text-secondary">
+                            <div class="spinner-border spinner-border-sm me-2"></div>Loading config...
+                        </div>
+                        <div id="config-error" class="alert alert-danger d-none"></div>
+
+                        <form id="config-form" class="d-none" onsubmit="saveConfig(event)">
+                            <div class="row g-3">
+                                <div class="col-12 config-field">
+                                    <label>Model URL</label>
+                                    <input type="text" class="form-control" id="cfg-model_url"
+                                           placeholder="http://ollama:11434">
+                                </div>
+                                <div class="col-12 config-field">
+                                    <label>Model Name</label>
+                                    <input type="text" class="form-control" id="cfg-model_name"
+                                           placeholder="devstral">
+                                </div>
+                                <div class="col-sm-6 config-field">
+                                    <label>Temperature</label>
+                                    <input type="number" class="form-control" id="cfg-temperature"
+                                           step="0.05" min="0" max="2" placeholder="0.7">
+                                </div>
+                                <div class="col-sm-6 config-field">
+                                    <label>Top P</label>
+                                    <input type="number" class="form-control" id="cfg-top_p"
+                                           step="0.05" min="0" max="1" placeholder="0.9">
+                                </div>
+                                <div class="col-sm-4 config-field">
+                                    <label>Top K</label>
+                                    <input type="number" class="form-control" id="cfg-top_k"
+                                           step="1" min="1" placeholder="40">
+                                </div>
+                                <div class="col-sm-4 config-field">
+                                    <label>Num Ctx</label>
+                                    <input type="number" class="form-control" id="cfg-num_ctx"
+                                           step="256" min="512" placeholder="8192">
+                                </div>
+                                <div class="col-sm-4 config-field">
+                                    <label>Num Predict</label>
+                                    <input type="number" class="form-control" id="cfg-num_predict"
+                                           step="64" min="-1" placeholder="512">
+                                </div>
+                                <div class="col-sm-6 config-field">
+                                    <label>Repeat Penalty</label>
+                                    <input type="number" class="form-control" id="cfg-repeat_penalty"
+                                           step="0.05" min="0.5" max="2" placeholder="1.1">
+                                </div>
+                                <div class="col-sm-6 config-field">
+                                    <label>HuggingFace Token
+                                        <span class="text-warning ms-1" id="cfg-hf-token-status"></span>
+                                    </label>
+                                    <input type="password" class="form-control" id="cfg-hf_token"
+                                           placeholder="hf_... (leave blank to keep existing)">
+                                </div>
+                            </div>
+
+                            <div class="d-flex gap-2 mt-3">
+                                <button type="submit" class="btn btn-primary" id="config-save-btn">
+                                    <i class="bi bi-check2 me-1"></i>Save to Redis
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" onclick="resetConfig()">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i>Reset to nginx.conf defaults
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: current effective config read-only display -->
+            <div class="col-lg-5">
+                <div class="section-card h-100">
+                    <div class="section-header">
+                        <i class="bi bi-info-circle text-secondary"></i>
+                        Effective Config
+                        <span id="redis-status-badge" class="badge ms-2" style="font-size:.7rem;"></span>
+                        <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="loadConfig()">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </div>
+                    <div class="section-body">
+                        <pre id="config-effective" class="text-secondary" style="font-size:.8rem;white-space:pre-wrap;">Loading...</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /tab-config -->
+
+</div><!-- /page-container -->
+
+<!-- Delete confirmation modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-danger">
+            <div class="modal-header border-danger">
+                <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Delete Model</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                Delete <strong id="delete-model-name" class="text-warning font-monospace"></strong>?
+                This removes it from Ollama and frees disk space.
+            </div>
+            <div class="modal-footer border-danger">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="delete-confirm-btn" onclick="confirmDelete()">
+                    <i class="bi bi-trash me-1"></i>Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Set Active Model modal -->
+<div class="modal fade" id="setActiveModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-primary">
+            <div class="modal-header border-primary">
+                <h5 class="modal-title"><i class="bi bi-check-circle-fill text-primary me-2"></i>Set Active Model</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                Set <strong id="set-model-name" class="text-info font-monospace"></strong> as the active model?
+                <div class="text-secondary mt-1" style="font-size:.85rem;">
+                    This updates the Redis config. All new chats will use this model.
+                </div>
+            </div>
+            <div class="modal-footer border-primary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="set-active-confirm-btn" onclick="confirmSetActive()">
+                    <i class="bi bi-check2 me-1"></i>Set Active
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+let activeModel   = '';   // current model from config
+let deleteTarget  = '';
+let setTarget     = '';
+let pullReader    = null;
+
+// ─── Tab switching ────────────────────────────────────────────────────────────
+function switchTab(tab, el) {
+    document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.add('d-none'));
+    document.querySelectorAll('.nav-page .nav-link').forEach(a => a.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.remove('d-none');
+    el.classList.add('active');
+
+    if (tab === 'installed') loadInstalledModels();
+    if (tab === 'config')    loadConfig();
+    return false;
+}
+
+// ─── Utils ────────────────────────────────────────────────────────────────────
+function fmtSize(bytes) {
+    if (!bytes) return '—';
+    const gb = bytes / 1024**3;
+    if (gb >= 1) return gb.toFixed(2) + ' GB';
+    return (bytes / 1024**2).toFixed(0) + ' MB';
+}
+function fmtDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString();
+}
+function showEl(id)  { document.getElementById(id)?.classList.remove('d-none'); }
+function hideEl(id)  { document.getElementById(id)?.classList.add('d-none'); }
+function setText(id, t) { const el = document.getElementById(id); if (el) el.textContent = t; }
+
+function addPullLine(text, cls) {
+    const log = document.getElementById('pull-log');
+    const div = document.createElement('div');
+    div.className = 'line ' + (cls||'');
+    div.textContent = text;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+}
+
+// ─── Installed Models (vLLM /v1/models format) ────────────────────────────────
+async function loadInstalledModels() {
+    showEl('models-loading');
+    hideEl('models-error');
+    hideEl('models-table-wrap');
+    hideEl('models-empty');
+
+    try {
+        const r    = await fetch('/api/models');
+        const data = await r.json();
+
+        // vLLM returns {"object":"list","data":[{"id":"...","owned_by":"vllm",...}]}
+        const models = data.data || data.models || [];
+        hideEl('models-loading');
+
+        if (!models.length) { showEl('models-empty'); return; }
+
+        const tbody = document.getElementById('models-tbody');
+        tbody.innerHTML = '';
+
+        models.forEach(m => {
+            // Normalise: vLLM uses .id, Ollama uses .name
+            const name     = m.id || m.name || '—';
+            const ownedBy  = m.owned_by || m.details?.format || 'vllm';
+            const created  = m.created  ? new Date(m.created * 1000).toLocaleDateString() : (fmtDate(m.modified_at));
+            const size     = m.size     ? fmtSize(m.size) : '—';
+            const isActive = name === activeModel || name.endsWith('/' + activeModel);
+
+            const tr = document.createElement('tr');
+            if (isActive) tr.className = 'active-model-row';
+            tr.innerHTML = `
+                <td class="font-monospace" style="word-break:break-all;">${escHtml(name)}</td>
+                <td>${size}</td>
+                <td>${created}</td>
+                <td><span class="badge bg-secondary model-badge">${escHtml(ownedBy)}</span></td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-primary"
+                            onclick="openSetActive('${escAttr(name)}')">
+                        <i class="bi bi-check2-circle"></i> Set Active
+                    </button>
+                </td>`;
+            tbody.appendChild(tr);
+        });
+
+        showEl('models-table-wrap');
+    } catch (e) {
+        hideEl('models-loading');
+        const el = document.getElementById('models-error');
+        el.textContent = 'Failed to load models: ' + e.message;
+        showEl('models-error');
+    }
+}
+
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escAttr(s) {
+    return String(s).replace(/'/g,'&#39;');
+}
+
+// ─── Delete model ─────────────────────────────────────────────────────────────
+function openDelete(name) {
+    deleteTarget = name;
+    document.getElementById('delete-model-name').textContent = name;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+async function confirmDelete() {
+    const btn = document.getElementById('delete-confirm-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Deleting...';
+
+    try {
+        const r = await fetch('/api/models/delete', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ model: deleteTarget })
+        });
+        const data = await r.json();
+        bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+        if (data.success || r.ok) {
+            loadInstalledModels();
+        } else {
+            alert('Delete failed: ' + (data.error||'Unknown error'));
+        }
+    } catch(e) {
+        alert('Delete error: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-trash me-1"></i>Delete';
+    }
+}
+
+// ─── Set active model ─────────────────────────────────────────────────────────
+function openSetActive(name) {
+    setTarget = name;
+    document.getElementById('set-model-name').textContent = name;
+    new bootstrap.Modal(document.getElementById('setActiveModal')).show();
+}
+async function confirmSetActive() {
+    const btn = document.getElementById('set-active-confirm-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+    try {
+        const r = await fetch('/api/config', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ model_name: setTarget })
+        });
+        const data = await r.json();
+        bootstrap.Modal.getInstance(document.getElementById('setActiveModal')).hide();
+        if (data.success || r.ok) {
+            activeModel = setTarget;
+            loadInstalledModels();
+        } else {
+            alert('Failed: ' + (data.error||'Unknown error'));
+        }
+    } catch(e) {
+        alert('Error: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Set Active';
+    }
+}
+
+// ─── HF Search ───────────────────────────────────────────────────────────────
+async function doHfSearch() {
+    const q = document.getElementById('hf-search-input').value.trim();
+    if (!q) return;
+
+    const btn = document.getElementById('hf-search-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+    hideEl('hf-results-error');
+    showEl('hf-results-loading');
+    document.getElementById('hf-results-grid').innerHTML = '';
+    hideEl('hf-files-section');
+
+    try {
+        const r = await fetch('/api/hf/search?q=' + encodeURIComponent(q));
+        const models = await r.json();
+        hideEl('hf-results-loading');
+
+        if (!Array.isArray(models) || !models.length) {
+            document.getElementById('hf-results-grid').innerHTML =
+                '<div class="col-12 text-secondary text-center py-3">No GGUF models found.</div>';
+            return;
+        }
+
+        const grid = document.getElementById('hf-results-grid');
+        models.forEach(m => {
+            const quants = (m.quant_hint || 'safetensors').trim().split(' ').filter(Boolean);
+            const quantBadges = quants.map(q => {
+                const cls = q === 'FP8' ? 'bg-success' : q === 'AWQ' ? 'bg-primary' :
+                            q === 'GPTQ' ? 'bg-warning text-dark' : q === 'GGUF' ? 'bg-secondary' : 'bg-dark border border-secondary';
+                return `<span class="badge quant-badge ${cls}">${q}</span>`;
+            }).join(' ');
+
+            const col = document.createElement('div');
+            col.className = 'col-md-6 col-lg-4';
+            col.innerHTML = `
+                <div class="hf-card" onclick="openFilePicker('${escAttr(m.id)}')">
+                    <div class="model-id">${escHtml(m.id)}</div>
+                    <div class="d-flex gap-1 mt-1 flex-wrap">${quantBadges}</div>
+                    <div class="meta d-flex gap-3 mt-1">
+                        <span><i class="bi bi-download me-1"></i>${(m.downloads||0).toLocaleString()}</span>
+                        <span><i class="bi bi-heart me-1"></i>${(m.likes||0).toLocaleString()}</span>
+                    </div>
+                    <div class="meta mt-1">Updated ${fmtDate(m.last_modified)}</div>
+                </div>`;
+            grid.appendChild(col);
+        });
+    } catch(e) {
+        hideEl('hf-results-loading');
+        const el = document.getElementById('hf-results-error');
+        el.textContent = 'Search error: ' + e.message;
+        showEl('hf-results-error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-search me-1"></i>Search';
+    }
+}
+
+// ─── HF Model Picker (vLLM: load the whole repo) ──────────────────────────────
+async function openFilePicker(modelId) {
+    document.getElementById('hf-selected-model').textContent = modelId;
+    showEl('hf-files-section');
+    hideEl('hf-files-error');
+    document.getElementById('hf-files-list').innerHTML = '';
+    showEl('hf-files-loading');
+
+    try {
+        const r     = await fetch('/api/hf/files?id=' + encodeURIComponent(modelId));
+        const files = await r.json();
+        hideEl('hf-files-loading');
+
+        const list = document.getElementById('hf-files-list');
+
+        if (!Array.isArray(files) || !files.length) {
+            list.innerHTML = '<div class="text-secondary text-center py-2">No weight files found in this repo.</div>';
+            return;
+        }
+
+        files.forEach(f => {
+            const isSt   = f.format === 'safetensors';
+            const icon   = isSt ? 'bi-layers' : 'bi-file-earmark-binary';
+            const color  = isSt ? 'text-primary' : 'text-warning';
+            const label  = isSt
+                ? `${f.filename} <span class="badge bg-primary" style="font-size:.7rem;">safetensors</span>`
+                : `${escHtml(f.filename)} <span class="badge bg-secondary" style="font-size:.7rem;">GGUF</span>`;
+            const sizeStr = f.size ? fmtSize(f.size) : '—';
+            const shardsStr = f.shards > 1 ? ` (${f.shards} shards)` : '';
+
+            const div = document.createElement('div');
+            div.className = 'model-variant-item';
+            div.innerHTML = `
+                <i class="bi ${icon} ${color}"></i>
+                <span class="fname">${label}${shardsStr}</span>
+                <span class="fsize">${sizeStr}</span>
+                <button class="btn btn-sm btn-primary" onclick="startPull('${escAttr(f.pull_name)}')">
+                    <i class="bi bi-lightning-charge me-1"></i>Use in vLLM
+                </button>`;
+            list.appendChild(div);
+        });
+    } catch(e) {
+        hideEl('hf-files-loading');
+        const el = document.getElementById('hf-files-error');
+        el.textContent = 'Error: ' + e.message;
+        showEl('hf-files-error');
+    }
+}
+
+function closeFilePicker() {
+    hideEl('hf-files-section');
+}
+
+// ─── "Use in vLLM" — save model ID to Redis config ────────────────────────────
+async function startPull(pullName) {
+    // Switch to installed tab and show load-model info panel
+    document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.add('d-none'));
+    document.querySelectorAll('.nav-page .nav-link').forEach(a => a.classList.remove('active'));
+    document.getElementById('tab-installed').classList.remove('d-none');
+    document.querySelector('[data-tab="installed"]').classList.add('active');
+
+    document.getElementById('pull-model-name').textContent = pullName;
+    document.getElementById('pull-log').style.display = 'none';
+    document.getElementById('pull-log').innerHTML = '';
+    showEl('pull-section');
+
+    /* Nothing else to do here — user clicks "Save as Active Model" to commit */
+}
+
+async function setPullModelActive() {
+    const modelId = document.getElementById('pull-model-name').textContent;
+    if (!modelId) return;
+
+    const btn = document.getElementById('pull-set-active-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+
+    try {
+        const r = await fetch('/api/config', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ model_name: modelId })
+        });
+        const data = await r.json();
+        if (r.ok) {
+            activeModel = modelId;
+            const log = document.getElementById('pull-log');
+            log.style.display = 'block';
+            log.innerHTML = `
+                <div class="line success">✓ Model ID saved to Redis: ${escHtml(modelId)}</div>
+                <div class="line progress mt-1">To load it into vLLM, restart the container:</div>
+                <div class="line mt-1" style="color:#e6edf3;">docker compose --env-file 5090.env restart internal-vllm</div>
+                <div class="line progress mt-1">Or set VLLM_MODEL=${escHtml(modelId)} in your .env and rebuild.</div>`;
+        } else {
+            alert('Failed: ' + (data.error || 'Unknown error'));
+        }
+    } catch(e) {
+        alert('Error: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Save as Active Model in Redis';
+    }
+}
+
+function copyRestartCmd() {
+    const modelId = document.getElementById('pull-model-name').textContent;
+    const cmd = `VLLM_MODEL="${modelId}" docker compose --env-file 5090.env up -d internal-vllm`;
+    navigator.clipboard.writeText(cmd).then(() => {
+        const btn = event.target.closest('button');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Copied!';
+        setTimeout(() => { btn.innerHTML = orig; }, 2000);
+    });
+}
+
+function _startPull_sseNotUsed(pullName) {
+    /* SSE pull not used in vLLM mode — vLLM downloads models at startup */
+    let sseEvent = '';   // kept for reference
+
+    function dispatchSSE(eventName, raw) {
+        // Final stream marker - not JSON
+        if (raw === '[DONE]') {
+            addPullLine('Stream closed.', 'success');
+            return;
+        }
+
+        let obj;
+        try { obj = JSON.parse(raw); } catch(_) {
+            addPullLine(raw);
+            return;
+        }
+
+        switch (eventName) {
+            case 'pull_progress': {
+                const status    = obj.status    || '';
+                const total     = obj.total     || 0;
+                const completed = obj.completed || 0;
+                let msg = status;
+                if (total > 0) {
+                    const pct = Math.min(99, Math.round((completed / total) * 100));
+                    document.getElementById('pull-progress-bar').style.width = pct + '%';
+                    msg += ` — ${pct}% (${fmtSize(completed)} / ${fmtSize(total)})`;
+                } else if (document.getElementById('pull-progress-bar').style.width === '5%') {
+                    document.getElementById('pull-progress-bar').style.width = '15%';
+                }
+                const cls = status === 'success' ? 'success' : 'progress';
+                addPullLine(msg, cls);
+                break;
+            }
+            case 'pull_done': {
+                document.getElementById('pull-progress-bar').style.width = '100%';
+                document.getElementById('pull-progress-bar').classList.remove('progress-bar-animated');
+                addPullLine(obj.success ? '✓ Model pulled successfully!' : 'Pull completed.', 'success');
+                loadInstalledModels();
+                break;
+            }
+            case 'status': {
+                addPullLine(obj.message || obj.status || raw, 'progress');
+                break;
+            }
+            case 'error': {
+                addPullLine('Error: ' + (obj.message || obj.error || raw), 'error');
+                break;
+            }
+            case 'done': {
+                // already handled by [DONE] branch or pull_done
+                break;
+            }
+            default: {
+                // fallback: look for status field (Ollama NDJSON passthrough)
+                if (obj.status !== undefined) {
+                    dispatchSSE('pull_progress', raw);
+                }
+            }
+        }
+    }
+
+    try {
+        const response = await fetch('/api/models/pull', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'text/event-stream'
+            },
+            body: JSON.stringify({ model: pullName })
+        });
+
+        if (!response.ok) {
+            let errMsg = 'HTTP ' + response.status;
+            try { const e = await response.json(); errMsg = e.error || errMsg; } catch(_) {}
+            addPullLine('Server error: ' + errMsg, 'error');
+            showEl('pull-dismiss-btn');
+            return;
+        }
+
+        if (!response.body) {
+            addPullLine('Browser does not support streaming responses.', 'error');
+            showEl('pull-dismiss-btn');
+            return;
+        }
+
+        const reader  = response.body.getReader();
+        pullReader    = reader;
+        const decoder = new TextDecoder();
+        let buf = '';
+
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buf += decoder.decode(value, { stream: true });
+
+            // Process all complete lines (SSE lines are \n-separated; events end with \n\n)
+            let nl;
+            while ((nl = buf.indexOf('\n')) !== -1) {
+                const line = buf.slice(0, nl);   // without the \n
+                buf = buf.slice(nl + 1);
+
+                const trimmed = line.trimEnd();   // preserve leading spaces? no, trim both
+                if (trimmed === '') {
+                    // blank line = end of SSE event block; reset event name
+                    sseEvent = '';
+                } else if (trimmed.startsWith(':')) {
+                    // SSE comment — ignore
+                } else if (trimmed.startsWith('event:')) {
+                    sseEvent = trimmed.slice(6).trim();
+                } else if (trimmed.startsWith('data:')) {
+                    const raw = trimmed.slice(5).trim();
+                    dispatchSSE(sseEvent, raw);
+                }
+                // id: and retry: lines are silently ignored
+            }
+        }
+    } catch(e) {
+        if (e.name !== 'AbortError') {
+            addPullLine('Pull error: ' + e.message, 'error');
+        }
+    }
+
+    showEl('pull-dismiss-btn');
+    pullReader = null;
+}
+
+function dismissPull() {
+    if (pullReader) { pullReader.cancel(); pullReader = null; }
+    hideEl('pull-section');
+}
+
+// ─── Runtime Config ───────────────────────────────────────────────────────────
+async function loadConfig() {
+    showEl('config-loading');
+    hideEl('config-error');
+    hideEl('config-form');
+    document.getElementById('config-effective').textContent = 'Loading...';
+
+    try {
+        const r   = await fetch('/api/config');
+        const cfg = await r.json();
+        hideEl('config-loading');
+        showEl('config-form');
+
+        // Populate inputs
+        const fields = ['model_url','model_name','temperature','top_p',
+                        'top_k','num_ctx','num_predict','repeat_penalty'];
+        fields.forEach(f => {
+            const el = document.getElementById('cfg-' + f);
+            if (el) el.value = cfg[f] ?? '';
+        });
+
+        // HF token masked display
+        const hfStatus = document.getElementById('cfg-hf-token-status');
+        if (cfg.hf_token_masked) {
+            hfStatus.textContent = '(set: ' + cfg.hf_token_masked + ')';
+        } else {
+            hfStatus.textContent = '(not set)';
+        }
+
+        // Redis status badge
+        const badge = document.getElementById('redis-status-badge');
+        if (badge) {
+            if (cfg.redis_available) {
+                badge.className = 'badge bg-success ms-2';
+                badge.textContent = cfg.redis_has_overrides ? 'Redis: overrides active' : 'Redis: connected';
+            } else {
+                badge.className = 'badge bg-warning text-dark ms-2';
+                badge.textContent = 'Redis: unavailable — using nginx.conf defaults';
+            }
+        }
+
+        // Disable save button if Redis is down
+        const saveBtn = document.getElementById('config-save-btn');
+        if (saveBtn) {
+            if (!cfg.redis_available) {
+                saveBtn.disabled = true;
+                saveBtn.title = 'Redis unavailable — cannot save config';
+            } else {
+                saveBtn.disabled = false;
+                saveBtn.title = '';
+            }
+        }
+
+        // Effective config display
+        const display = {
+            source:              cfg.source,
+            redis_available:     cfg.redis_available,
+            redis_has_overrides: cfg.redis_has_overrides,
+            model_url:           cfg.model_url,
+            model_name:          cfg.model_name,
+            temperature:         cfg.temperature,
+            top_p:               cfg.top_p,
+            top_k:               cfg.top_k,
+            num_ctx:             cfg.num_ctx,
+            num_predict:         cfg.num_predict,
+            repeat_penalty:      cfg.repeat_penalty,
+            hf_token:            cfg.hf_token_masked || '(not set)',
+            as_of:               new Date(cfg.timestamp * 1000).toLocaleString()
+        };
+        document.getElementById('config-effective').textContent =
+            JSON.stringify(display, null, 2);
+
+        // Track active model for the installed tab
+        if (cfg.model_name) activeModel = cfg.model_name;
+    } catch(e) {
+        hideEl('config-loading');
+        const el = document.getElementById('config-error');
+        el.textContent = 'Failed to load config: ' + e.message;
+        showEl('config-error');
+    }
+}
+
+async function saveConfig(event) {
+    event.preventDefault();
+    const btn = document.getElementById('config-save-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+
+    const payload = {};
+    ['model_url','model_name','temperature','top_p',
+     'top_k','num_ctx','num_predict','repeat_penalty'].forEach(f => {
+        const el = document.getElementById('cfg-' + f);
+        if (el && el.value.trim() !== '') payload[f] = el.value.trim();
+    });
+
+    // HF token: only include if user typed something
+    const hfEl = document.getElementById('cfg-hf_token');
+    if (hfEl && hfEl.value.trim()) payload['hf_token'] = hfEl.value.trim();
+
+    try {
+        const r = await fetch('/api/config', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(payload)
+        });
+        const data = await r.json();
+        if (r.ok) {
+            hfEl.value = '';
+            await loadConfig();
+        } else {
+            alert('Save failed: ' + (data.error||'Unknown error'));
+        }
+    } catch(e) {
+        alert('Save error: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Save to Redis';
+    }
+}
+
+async function resetConfig() {
+    if (!confirm('Reset all runtime config? nginx.conf defaults will be used until you set overrides again.')) return;
+    try {
+        const r = await fetch('/api/config', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ reset: true })
+        });
+        if (r.ok) loadConfig();
+        else alert('Reset failed');
+    } catch(e) {
+        alert('Reset error: ' + e.message);
+    }
+}
+
+async function adminLogout() {
+    await fetch('/api/auth/logout', {method:'POST'});
+    window.location.href = '/static/login.html';
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+(async function init() {
+    // Check admin auth — redirect to login if not admin
+    try {
+        const ar = await fetch('/api/auth/status');
+        const ad = await ar.json();
+        if (ad.type !== 'admin') {
+            window.location.href = '/static/login.html';
+            return;
+        }
+    } catch(_) {}
+
+    // Pre-load active model so installed tab highlights it
+    try {
+        const r = await fetch('/api/config');
+        const cfg = await r.json();
+        if (cfg.model_name) activeModel = cfg.model_name;
+    } catch(_) {}
+
+    loadInstalledModels();
+})();
+</script>
+</body>
+</html>

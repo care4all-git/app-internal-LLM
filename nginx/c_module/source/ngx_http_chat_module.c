@@ -83,6 +83,8 @@ static ngx_int_t chat_handler_hf_files(ngx_http_request_t *r);
 static ngx_int_t chat_handler_auth_status(ngx_http_request_t *r);
 static ngx_int_t chat_handler_auth_login(ngx_http_request_t *r);
 static ngx_int_t chat_handler_auth_logout(ngx_http_request_t *r);
+
+static ngx_int_t chat_handler_hardware(ngx_http_request_t *r);
 /* Body callbacks */
 static void chat_body_auth_login(ngx_http_request_t *r);
 
@@ -118,6 +120,7 @@ static chat_handler_map_t s_handler_map[] = {
     {"chat_auth_status",    chat_handler_auth_status},
     {"chat_auth_login",     chat_handler_auth_login},
     {"chat_auth_logout",    chat_handler_auth_logout},
+    {"chat_hardware",       chat_handler_hardware},
     {NULL, NULL}
 };
 
@@ -268,6 +271,9 @@ static ngx_command_t ngx_http_chat_commands[] = {
       NGX_HTTP_LOC_CONF|NGX_CONF_NOARGS,
       ngx_http_chat_set_handler, NGX_HTTP_LOC_CONF_OFFSET, 0, NULL },
     { ngx_string("chat_auth_logout"),
+      NGX_HTTP_LOC_CONF|NGX_CONF_NOARGS,
+      ngx_http_chat_set_handler, NGX_HTTP_LOC_CONF_OFFSET, 0, NULL },
+    { ngx_string("chat_hardware"),
       NGX_HTTP_LOC_CONF|NGX_CONF_NOARGS,
       ngx_http_chat_set_handler, NGX_HTTP_LOC_CONF_OFFSET, 0, NULL },
 
@@ -619,8 +625,8 @@ chat_resolve_config(ngx_http_request_t *r, chat_effective_config_t *cfg)
     chat_redis_config_t        redis_cfg;
 
     /* Hard-coded fallbacks */
-    strncpy(cfg->model_url,  "http://ollama:11434", sizeof(cfg->model_url)  - 1);
-    strncpy(cfg->model_name, "devstral",            sizeof(cfg->model_name) - 1);
+    strncpy(cfg->model_url,  "http://internal-ollama:11434", sizeof(cfg->model_url)  - 1);
+    cfg->model_name[0] = '\0';
     cfg->temperature   = 0.7;
     cfg->top_p         = 0.9;
     cfg->top_k         = 40;
@@ -791,7 +797,7 @@ chat_handler_root(ngx_http_request_t *r)
     fread(buf, 1, sz, f);
     fclose(f);
 
-    chat_add_header(r, "Cache-Control", "public, max-age=300");
+    chat_add_header(r, "Cache-Control", "no-cache");
     rc = chat_send_html(r, NGX_HTTP_OK, buf, sz);
     free(buf);
     return rc;
@@ -809,7 +815,6 @@ chat_handler_static(ngx_http_request_t *r)
     char       *buf;
     size_t      sz;
     const char *mime;
-    ngx_int_t   rc;
     ngx_str_t   ct;
     u_char     *ctp;
 
@@ -833,19 +838,38 @@ chat_handler_static(ngx_http_request_t *r)
     fclose(f);
 
     mime = chat_mime_for_path(path);
-    ctp  = ngx_pnalloc(r->pool, strlen(mime));
+    ctp  = ngx_pnalloc(r->pool, strlen(mime) + 1);
     if (!ctp) { free(buf); return NGX_HTTP_INTERNAL_SERVER_ERROR; }
-    ngx_memcpy(ctp, mime, strlen(mime));
+    ngx_memcpy(ctp, mime, strlen(mime) + 1);
     ct.data = ctp;
     ct.len  = strlen(mime);
 
-    r->headers_out.content_type     = ct;
-    r->headers_out.content_type_len = ct.len;
-    chat_add_header(r, "Cache-Control", "public, max-age=3600");
+    /* Send with correct MIME type — do NOT use chat_send_html (forces text/html) */
+    ngx_buf_t   *b;
+    ngx_chain_t  out;
+    u_char      *p;
 
-    rc = chat_send_html(r, NGX_HTTP_OK, buf, sz);
+    p = ngx_pnalloc(r->pool, sz);
+    if (!p) { free(buf); return NGX_HTTP_INTERNAL_SERVER_ERROR; }
+    ngx_memcpy(p, buf, sz);
     free(buf);
-    return rc;
+
+    r->headers_out.status            = NGX_HTTP_OK;
+    r->headers_out.content_length_n  = (off_t)sz;
+    r->headers_out.content_type      = ct;
+    r->headers_out.content_type_len  = ct.len;
+    chat_add_header(r, "Cache-Control", "no-cache");
+    chat_set_cors_headers(r);
+    ngx_http_send_header(r);
+
+    b = ngx_pcalloc(r->pool, sizeof(ngx_buf_t));
+    b->pos      = p;
+    b->last     = p + sz;
+    b->memory   = 1;
+    b->last_buf = 1;
+    out.buf  = b;
+    out.next = NULL;
+    return ngx_http_output_filter(r, &out);
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -1690,8 +1714,8 @@ static ngx_int_t
 chat_handler_health(ngx_http_request_t *r)
 {
     ngx_http_chat_main_conf_t *mcf;
-    char         model_url[256]  = "http://ollama:11434";
-    char         model_name[128] = "devstral";
+    char         model_url[256]  = "http://internal-ollama:11434";
+    char         model_name[128] = "";
     int          redis_ok, ollama_ok;
     char         ollama_err[512] = "";
     redisContext *rdc;
@@ -1978,8 +2002,6 @@ chat_body_config(ngx_http_request_t *r)
 static ngx_int_t
 chat_handler_models_list(ngx_http_request_t *r)
 {
-    if (!chat_check_admin_auth(r))
-        return send_api_error(r, NGX_HTTP_FORBIDDEN, "Admin access required", NULL);
     chat_effective_config_t  cfg;
     char                    *json;
     ngx_int_t                n_rc;
@@ -2288,31 +2310,19 @@ chat_handler_auth_status(ngx_http_request_t *r)
         case CHAT_AUTH_ADMIN:
             cJSON_AddStringToObject(resp, "type", "admin");
             break;
-        case CHAT_AUTH_USER:
-        case CHAT_AUTH_NEW:
+        default:
             cJSON_AddStringToObject(resp, "type", "user");
             break;
-        case CHAT_AUTH_FULL:
-            cJSON_AddStringToObject(resp, "type", "full");
-            break;
-        default:
-            cJSON_AddStringToObject(resp, "type", "unknown");
     }
 
     cJSON_AddStringToObject(resp, "uid",         info.uid);
     cJSON_AddNumberToObject(resp, "slot",        (double)info.slot);
     cJSON_AddNumberToObject(resp, "total_users", (double)info.total_users);
-    cJSON_AddNumberToObject(resp, "max_users",   (double)CHAT_AUTH_MAX_USERS);
     cJSON_AddBoolToObject  (resp, "is_new",      info.type == CHAT_AUTH_NEW);
 
     js   = cJSON_PrintUnformatted(resp);
     cJSON_Delete(resp);
-
-    if (info.type == CHAT_AUTH_FULL) {
-        n_rc = chat_send_json(r, 503, js);
-    } else {
-        n_rc = chat_send_json(r, NGX_HTTP_OK, js);
-    }
+    n_rc = chat_send_json(r, NGX_HTTP_OK, js);
     free(js);
     return n_rc;
 }
@@ -2388,4 +2398,46 @@ chat_handler_auth_logout(ngx_http_request_t *r)
     if (rc) redisFree(rc);
     send_api_success(r, NGX_HTTP_OK, NULL, "Logged out");
     return NGX_OK;
+}
+
+/* ════════════════════════════════════════════════════════════════
+ * GET /api/hardware — return vLLM hardware info from Redis
+ * Written at startup by the vLLM container's detect_hardware.py
+ * ════════════════════════════════════════════════════════════════ */
+static ngx_int_t
+chat_handler_hardware(ngx_http_request_t *r)
+{
+    redisContext          *rc;
+    chat_redis_hardware_t  hw;
+    cJSON                 *resp;
+    char                  *js;
+    ngx_int_t              n_rc;
+
+    if (!chat_check_admin_auth(r))
+        return send_api_error(r, NGX_HTTP_FORBIDDEN, "Admin access required", NULL);
+    if (r->method != NGX_HTTP_GET)
+        return NGX_HTTP_NOT_ALLOWED;
+
+    memset(&hw, 0, sizeof(hw));
+    rc = get_redis(r);
+    if (rc) {
+        chat_redis_get_hardware(rc, r->connection->log, &hw);
+        redisFree(rc);
+    }
+
+    resp = cJSON_CreateObject();
+    cJSON_AddBoolToObject  (resp, "found",       hw.found);
+    cJSON_AddStringToObject(resp, "device",      hw.device[0]      ? hw.device           : "unknown");
+    cJSON_AddNumberToObject(resp, "gpu_count",   hw.gpu_count[0]   ? atoi(hw.gpu_count)  : 0);
+    cJSON_AddStringToObject(resp, "gpu_name",    hw.gpu_name[0]    ? hw.gpu_name          : "");
+    cJSON_AddNumberToObject(resp, "gpu_vram_gb", hw.gpu_vram_gb[0] ? atof(hw.gpu_vram_gb) : 0.0);
+    cJSON_AddNumberToObject(resp, "cpu_cores",   hw.cpu_cores[0]   ? atoi(hw.cpu_cores)  : 0);
+    cJSON_AddNumberToObject(resp, "ram_gb",      hw.ram_gb[0]      ? atof(hw.ram_gb)      : 0.0);
+    cJSON_AddNumberToObject(resp, "as_of",       hw.as_of[0]       ? (double)atol(hw.as_of) : 0.0);
+
+    js   = cJSON_PrintUnformatted(resp);
+    cJSON_Delete(resp);
+    n_rc = chat_send_json(r, NGX_HTTP_OK, js);
+    free(js);
+    return n_rc;
 }

@@ -55,6 +55,7 @@ RUN ./configure \
 FROM alpine:3.19
 
 # Runtime libraries only (ca-certificates needed for HTTPS to HuggingFace)
+# redis included for redis-cli in entrypoint (seeds HF token into Redis)
 RUN apk add --no-cache \
         hiredis \
         libcurl \
@@ -62,7 +63,8 @@ RUN apk add --no-cache \
         openssl \
         libssl3 \
         libcrypto3 \
-        ca-certificates
+        ca-certificates \
+        redis
 
 # Copy compiled nginx
 COPY --from=builder /usr/local/nginx /usr/local/nginx
@@ -81,10 +83,14 @@ COPY static/ /usr/local/nginx/html/static/
 # Copy nginx configuration
 COPY nginx.conf /usr/local/nginx/conf/nginx.conf
 
+# Copy entrypoint (seeds HF token into Redis before starting nginx)
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Symlink logs to stdout/stderr for docker logs
 RUN ln -sf /dev/stdout /var/log/nginx/access.log && \
     ln -sf /dev/stderr /var/log/nginx/error.log
 
 EXPOSE 443
 
-CMD ["/usr/local/nginx/sbin/nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/entrypoint.sh"]

@@ -111,45 +111,74 @@
 </head>
 <body>
 
-<!-- Navbar -->
-<nav class="navbar navbar-dark bg-dark border-bottom border-secondary">
-    <div class="container-fluid">
-        <div class="d-flex align-items-center gap-3">
-            <span class="navbar-brand mb-0">
-                <i class="bi bi-lightning-charge-fill"></i> Internal Chat
+<script>
+var _sidebarOpen = true;
+function toggleSidebar() {
+    var s = document.getElementById('sidebar');
+    var f = document.getElementById('sidebar-fab');
+    if (!s) return;
+    _sidebarOpen = !_sidebarOpen;
+    s.style.display = _sidebarOpen ? 'flex' : 'none';
+    s.style.width    = _sidebarOpen ? '260px' : '0';
+    if (f) f.style.display = _sidebarOpen ? 'none' : 'flex';
+}
+</script>
+
+<button id="sidebar-fab" onclick="toggleSidebar()" title="Open sidebar"
+    style="display:none;position:fixed;top:12px;left:12px;z-index:9000;width:36px;height:36px;border-radius:8px;background:#1a1a1a;border:1px solid #333;color:#b0b0b0;align-items:center;justify-content:center;cursor:pointer;font-size:1rem;">
+    <i class="bi bi-layout-sidebar"></i>
+</button>
+
+<div style="display:flex;height:100vh;overflow:hidden;">
+
+    <!-- Sidebar -->
+    <div id="sidebar" style="width:260px;min-width:260px;max-width:260px;height:100vh;display:flex;flex-direction:column;flex-shrink:0;background:#1a1a1a;border-right:1px solid #333;overflow:hidden;z-index:100;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0.8rem 1rem;border-bottom:1px solid #333;flex-shrink:0;">
+            <span style="font-weight:700;font-size:1rem;color:#e0e0e0;">
+                <i class="bi bi-lightning-charge-fill" style="color:#0d6efd;"></i> JAI
             </span>
-            <a href="/" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-chat-dots me-1"></i>Chat
-            </a>
+            <button onclick="toggleSidebar()" title="Collapse" style="background:none;border:none;color:#b0b0b0;cursor:pointer;font-size:1rem;padding:4px;line-height:1;">
+                <i class="bi bi-layout-sidebar"></i>
+            </button>
         </div>
-        <div class="d-flex align-items-center gap-2">
-            <span class="text-secondary fw-semibold">
-                <i class="bi bi-cpu me-1"></i>Model Manager
-            </span>
-            <button class="btn btn-outline-danger btn-sm" onclick="adminLogout()">
-                <i class="bi bi-box-arrow-right me-1"></i>Logout
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:1rem;color:#555;font-size:0.8rem;text-align:center;">
+            Model Manager
+        </div>
+        <div style="border-top:1px solid #333;flex-shrink:0;display:flex;">
+            <a href="/static/chat.html" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 4px;color:#b0b0b0;font-size:0.68rem;text-decoration:none;border-right:1px solid #333;">
+                <i class="bi bi-chat-dots" style="font-size:1.1rem;"></i><span>Chat</span>
+            </a>
+            <button onclick="fetch('/api/auth/logout',{method:'POST'}).finally(()=>window.location='/static/login.html')"
+                style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 4px;background:none;border:none;color:#b0b0b0;font-size:0.68rem;cursor:pointer;">
+                <i class="bi bi-box-arrow-right" style="font-size:1.1rem;"></i><span>Logout</span>
             </button>
         </div>
     </div>
-</nav>
 
+    <!-- Main content -->
+    <div style="flex:1;overflow-y:auto;min-width:0;">
 <div class="page-container">
 
     <!-- Page tabs -->
     <ul class="nav nav-page" id="pageTabs">
         <li class="nav-item">
-            <a class="nav-link active" href="#" data-tab="installed" onclick="switchTab('installed',this)">
+            <a class="nav-link active" href="#" data-tab="installed" onclick="switchTab('installed',this,event)">
                 <i class="bi bi-collection me-1"></i>Installed Models
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" href="#" data-tab="hf" onclick="switchTab('hf',this)">
+            <a class="nav-link" href="#" data-tab="hf" onclick="switchTab('hf',this,event)">
                 <i class="bi bi-search me-1"></i>HuggingFace Browser
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" href="#" data-tab="config" onclick="switchTab('config',this)">
+            <a class="nav-link" href="#" data-tab="config" onclick="switchTab('config',this,event)">
                 <i class="bi bi-gear me-1"></i>Runtime Config
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" data-tab="calibrate" onclick="switchTab('calibrate',this,event)">
+                <i class="bi bi-cpu me-1"></i>Calibrate Hardware
             </a>
         </li>
     </ul>
@@ -195,32 +224,28 @@
         <!-- "Load model" info panel — shows after user picks a model from HF -->
         <div class="section-card d-none" id="pull-section">
             <div class="section-header">
-                <i class="bi bi-lightning-charge text-warning"></i>
-                Load Model into vLLM
-                <button class="btn btn-sm btn-outline-secondary ms-auto" id="pull-dismiss-btn" onclick="dismissPull()">
+                <i class="bi bi-cloud-download text-warning"></i>
+                Pull Model into Ollama
+                <button class="btn btn-sm btn-outline-secondary ms-auto d-none" id="pull-dismiss-btn" onclick="dismissPull()">
                     <i class="bi bi-x"></i> Dismiss
                 </button>
             </div>
             <div class="section-body">
-                <div class="alert alert-info mb-3" style="font-size:.88rem;">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <strong>How vLLM loads models:</strong> vLLM downloads and caches models from HuggingFace at
-                    startup. To switch models, set the model ID below, then restart the vLLM container.
-                    The HF cache (<code>volumes/vllm/hf_cache</code>) is preserved between restarts.
-                </div>
                 <div class="d-flex gap-2 align-items-center mb-3">
-                    <span class="text-secondary" style="font-size:.85rem;">Selected model:</span>
+                    <span class="text-secondary" style="font-size:.85rem;">Pulling:</span>
                     <code id="pull-model-name" class="text-info"></code>
                 </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-primary" id="pull-set-active-btn" onclick="setPullModelActive()">
-                        <i class="bi bi-check2-circle me-1"></i>Save as Active Model in Redis
-                    </button>
-                    <button class="btn btn-outline-secondary" onclick="copyRestartCmd()">
-                        <i class="bi bi-clipboard me-1"></i>Copy restart command
+                <div class="progress mb-2" style="height:8px;background:#2a2a2a;">
+                    <div id="pull-progress-bar"
+                         class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                         style="width:0%;transition:width .4s ease;"></div>
+                </div>
+                <div class="pull-log mt-2" id="pull-log"></div>
+                <div class="d-none mt-3" id="pull-set-active-section">
+                    <button class="btn btn-success" id="pull-set-active-btn" onclick="setPullModelActive()">
+                        <i class="bi bi-check2-circle me-1"></i>Set as Active Model
                     </button>
                 </div>
-                <div class="pull-log mt-3" id="pull-log" style="display:none;"></div>
             </div>
         </div>
 
@@ -265,7 +290,7 @@
                 <i class="bi bi-boxes text-warning"></i>
                 Load
                 <span id="hf-selected-model" class="text-info ms-1 fw-normal font-monospace"></span>
-                <small class="text-secondary fw-normal ms-2">into vLLM</small>
+                <small class="text-secondary fw-normal ms-2">— pull into Ollama</small>
                 <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="closeFilePicker()">
                     <i class="bi bi-x"></i>
                 </button>
@@ -385,7 +410,61 @@
 
     </div><!-- /tab-config -->
 
+    <!-- ═══════════════════════════════════════════════════════
+         TAB 4: Calibrate Hardware
+    ════════════════════════════════════════════════════════════ -->
+    <div id="tab-calibrate" class="d-none">
+
+        <div class="section-card">
+            <div class="section-header">
+                <i class="bi bi-cpu text-primary"></i>
+                Hardware Detection
+                <button class="btn btn-primary ms-auto" id="calibrate-btn" onclick="runCalibrate()">
+                    <i class="bi bi-search me-1"></i>Detect &amp; Calibrate
+                </button>
+            </div>
+            <div class="section-body">
+                <p class="text-secondary mb-3" style="font-size:.88rem;">
+                    Detects the GPU/CPU available to vLLM and recommends optimal startup parameters
+                    for your <code>.env</code> file. Hardware is reported by the vLLM container at startup.
+                </p>
+                <div id="cal-loading" class="text-center py-3 text-secondary d-none">
+                    <div class="spinner-border spinner-border-sm me-2"></div>Detecting hardware...
+                </div>
+                <div id="cal-error" class="alert alert-danger d-none"></div>
+                <div id="cal-result" class="d-none">
+
+                    <!-- Detected hardware -->
+                    <div class="row g-3 mb-4" id="cal-hw-cards"></div>
+
+                    <!-- Recommendations -->
+                    <div class="section-card mb-0" style="background:#0d1117;">
+                        <div class="section-header" style="border-color:#30363d;">
+                            <i class="bi bi-sliders text-success"></i>
+                            Recommended <code>.env</code> settings
+                            <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="copyCalibration()">
+                                <i class="bi bi-clipboard me-1"></i>Copy
+                            </button>
+                        </div>
+                        <div class="section-body">
+                            <pre id="cal-recommendations" style="font-size:.82rem;color:#c9d1d9;white-space:pre-wrap;margin:0;"></pre>
+                            <div class="alert alert-warning mt-3 mb-0" style="font-size:.83rem;">
+                                <i class="bi bi-info-circle me-2"></i>
+                                These are <strong>startup parameters</strong> — paste them into your <code>.env</code>
+                                and run <code>./start.sh restart internal-vllm</code> for them to take effect.
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /tab-calibrate -->
+
 </div><!-- /page-container -->
+    </div><!-- /main content -->
+</div><!-- /app layout -->
 
 <!-- Delete confirmation modal -->
 <div class="modal fade" id="deleteModal" tabindex="-1">
@@ -443,7 +522,8 @@ let setTarget     = '';
 let pullReader    = null;
 
 // ─── Tab switching ────────────────────────────────────────────────────────────
-function switchTab(tab, el) {
+function switchTab(tab, el, event) {
+    if (event) event.preventDefault();
     document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.add('d-none'));
     document.querySelectorAll('.nav-page .nav-link').forEach(a => a.classList.remove('active'));
     document.getElementById('tab-' + tab).classList.remove('d-none');
@@ -451,7 +531,7 @@ function switchTab(tab, el) {
 
     if (tab === 'installed') loadInstalledModels();
     if (tab === 'config')    loadConfig();
-    return false;
+    if (tab === 'calibrate') runCalibrate();
 }
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
@@ -478,6 +558,22 @@ function addPullLine(text, cls) {
     log.scrollTop = log.scrollHeight;
 }
 
+function updateOrAddPullLine(key, text, cls) {
+    const log = document.getElementById('pull-log');
+    let existing = log.querySelector(`[data-key="${CSS.escape(key)}"]`);
+    if (existing) {
+        existing.textContent = text;
+        existing.className = 'line ' + (cls||'');
+    } else {
+        const div = document.createElement('div');
+        div.className = 'line ' + (cls||'');
+        div.textContent = text;
+        div.dataset.key = key;
+        log.appendChild(div);
+    }
+    log.scrollTop = log.scrollHeight;
+}
+
 // ─── Installed Models (vLLM /v1/models format) ────────────────────────────────
 async function loadInstalledModels() {
     showEl('models-loading');
@@ -486,11 +582,15 @@ async function loadInstalledModels() {
     hideEl('models-empty');
 
     try {
-        const r    = await fetch('/api/models');
-        const data = await r.json();
+        const signal = AbortSignal.timeout(15000);
+        const r      = await fetch('/api/models', { signal });
+        const text   = await r.text();
+        if (!r.ok) throw new Error(`HTTP ${r.status}: ${text.slice(0, 200)}`);
+        let data;
+        try { data = JSON.parse(text); } catch(pe) { throw new Error('Bad JSON: ' + text.slice(0, 200)); }
 
-        // vLLM returns {"object":"list","data":[{"id":"...","owned_by":"vllm",...}]}
-        const models = data.data || data.models || [];
+        // Ollama /api/tags → {models:[...]}, OpenAI /v1/models → {data:[...]}
+        const models = data.models || data.data || [];
         hideEl('models-loading');
 
         if (!models.length) { showEl('models-empty'); return; }
@@ -499,24 +599,30 @@ async function loadInstalledModels() {
         tbody.innerHTML = '';
 
         models.forEach(m => {
-            // Normalise: vLLM uses .id, Ollama uses .name
-            const name     = m.id || m.name || '—';
-            const ownedBy  = m.owned_by || m.details?.format || 'vllm';
-            const created  = m.created  ? new Date(m.created * 1000).toLocaleDateString() : (fmtDate(m.modified_at));
-            const size     = m.size     ? fmtSize(m.size) : '—';
-            const isActive = name === activeModel || name.endsWith('/' + activeModel);
+            const name     = m.name || m.id || '—';
+            const format   = m.details?.format || m.owned_by || 'gguf';
+            const modified = fmtDate(m.modified_at) || (m.created ? new Date(m.created * 1000).toLocaleDateString() : '—');
+            const size     = m.size ? fmtSize(m.size) : '—';
+            const isActive = name === activeModel;
 
             const tr = document.createElement('tr');
             if (isActive) tr.className = 'active-model-row';
             tr.innerHTML = `
-                <td class="font-monospace" style="word-break:break-all;">${escHtml(name)}</td>
+                <td class="font-monospace" style="word-break:break-all;">
+                    ${escHtml(name)}
+                    ${isActive ? '<span class="badge bg-success ms-2" style="font-size:.68rem;">active</span>' : ''}
+                </td>
                 <td>${size}</td>
-                <td>${created}</td>
-                <td><span class="badge bg-secondary model-badge">${escHtml(ownedBy)}</span></td>
-                <td class="text-end">
+                <td>${modified}</td>
+                <td><span class="badge bg-secondary model-badge">${escHtml(format)}</span></td>
+                <td class="text-end d-flex gap-1 justify-content-end">
                     <button class="btn btn-sm btn-outline-primary"
                             onclick="openSetActive('${escAttr(name)}')">
-                        <i class="bi bi-check2-circle"></i> Set Active
+                        <i class="bi bi-check2-circle"></i> Use
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger"
+                            onclick="openDelete('${escAttr(name)}')">
+                        <i class="bi bi-trash"></i>
                     </button>
                 </td>`;
             tbody.appendChild(tr);
@@ -672,13 +778,33 @@ async function openFilePicker(modelId) {
 
     try {
         const r     = await fetch('/api/hf/files?id=' + encodeURIComponent(modelId));
-        const files = await r.json();
+        const data  = await r.json();
         hideEl('hf-files-loading');
 
         const list = document.getElementById('hf-files-list');
 
-        if (!Array.isArray(files) || !files.length) {
-            list.innerHTML = '<div class="text-secondary text-center py-2">No weight files found in this repo.</div>';
+        if (!r.ok) {
+            list.innerHTML = `<div class="alert alert-danger">API error ${r.status}: ${escHtml(data.error || JSON.stringify(data))}</div>`;
+            return;
+        }
+
+        const files = Array.isArray(data) ? data : [];
+
+        if (!files.length) {
+            list.innerHTML = `<div class="text-secondary text-center py-3">
+                <i class="bi bi-exclamation-circle me-2"></i>No GGUF files found in this repo.<br>
+                <small class="mt-1 d-block">Ollama requires GGUF format. Try searching for a GGUF-quantized version, e.g. add "GGUF" to your search.</small>
+                <hr style="border-color:#333;">
+                <small class="d-block mb-1 text-secondary">Pull directly by Ollama name — check the <a href="https://huggingface.co/${escHtml(modelId)}/tree/main" target="_blank" class="text-info">repo file list</a> for the exact filename:</small>
+                <div class="d-flex gap-2 justify-content-center mt-2">
+                    <input type="text" class="form-control form-control-sm" id="hf-manual-pull" style="max-width:400px;"
+                        placeholder="hf.co/user/repo:filename.Q4_K_M.gguf" value="hf.co/${escHtml(modelId)}:">
+                    <button class="btn btn-sm btn-warning" onclick="startPull(document.getElementById('hf-manual-pull').value.trim())">
+                        <i class="bi bi-download me-1"></i>Pull
+                    </button>
+                </div>
+                <small class="text-secondary mt-1 d-block">Format: <code>hf.co/Author/Repo-GGUF:filename.Q4_K_M.gguf</code></small>
+            </div>`;
             return;
         }
 
@@ -715,20 +841,184 @@ function closeFilePicker() {
     hideEl('hf-files-section');
 }
 
-// ─── "Use in vLLM" — save model ID to Redis config ────────────────────────────
+// ─── Pull state persistence ───────────────────────────────────────────────────
+function savePullState(model) {
+    localStorage.setItem('ollama_pull', JSON.stringify({ model, startedAt: Date.now() }));
+}
+function clearPullState() {
+    localStorage.removeItem('ollama_pull');
+}
+function getPullState() {
+    try { return JSON.parse(localStorage.getItem('ollama_pull')); } catch(_) { return null; }
+}
+
+// On page load: restore in-progress pull banner if state exists
+window.addEventListener('DOMContentLoaded', () => {
+    const state = getPullState();
+    if (!state) return;
+    const elapsed = Math.round((Date.now() - state.startedAt) / 1000);
+    const mins = Math.floor(elapsed / 60), secs = elapsed % 60;
+    const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+
+    // Switch to installed tab and show pull section
+    document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.add('d-none'));
+    document.getElementById('tab-installed').classList.remove('d-none');
+    document.querySelector('[data-tab="installed"]')?.classList.add('active');
+    document.getElementById('pull-model-name').textContent = state.model;
+    showEl('pull-section');
+    hideEl('pull-dismiss-btn');
+    hideEl('pull-set-active-section');
+
+    const bar = document.getElementById('pull-progress-bar');
+    bar.style.width = '50%'; // unknown — show indeterminate
+
+    addPullLine(`Pull in progress (started ${timeStr} ago) — Ollama is downloading in the background.`, 'progress');
+    addPullLine('Navigate away is safe; the download continues. Click "Check if done" to see if it finished.', 'progress');
+
+    const checkBtn = document.createElement('button');
+    checkBtn.className = 'btn btn-sm btn-outline-info mt-2';
+    checkBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Check if done';
+    checkBtn.onclick = async () => {
+        checkBtn.disabled = true;
+        checkBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Checking...';
+        const r = await fetch('/api/models');
+        const data = await r.json();
+        const models = (data.models || []).map(m => m.name || m.model || '');
+        const shortName = state.model.split(':').pop(); // e.g. filename.gguf
+        const found = models.some(m => m.includes(shortName) || state.model.includes(m));
+        if (found) {
+            clearPullState();
+            bar.style.width = '100%';
+            bar.classList.remove('progress-bar-striped', 'progress-bar-animated');
+            addPullLine('✓ Model is now in Ollama!', 'success');
+            showEl('pull-set-active-section');
+            showEl('pull-dismiss-btn');
+            checkBtn.remove();
+            loadInstalledModels();
+        } else {
+            addPullLine('Still downloading… try again in a moment.', 'progress');
+            checkBtn.disabled = false;
+            checkBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Check if done';
+        }
+    };
+    document.getElementById('pull-log').appendChild(checkBtn);
+});
+
 async function startPull(pullName) {
-    // Switch to installed tab and show load-model info panel
+    if (!pullName) return;
+    if (pullName.endsWith(':')) {
+        addPullLine('Please add the GGUF filename after the colon, e.g. :filename.Q4_K_M.gguf', 'error');
+        return;
+    }
+
+    savePullState(pullName);
+
+    // Switch to installed tab
     document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.add('d-none'));
     document.querySelectorAll('.nav-page .nav-link').forEach(a => a.classList.remove('active'));
     document.getElementById('tab-installed').classList.remove('d-none');
     document.querySelector('[data-tab="installed"]').classList.add('active');
 
     document.getElementById('pull-model-name').textContent = pullName;
-    document.getElementById('pull-log').style.display = 'none';
-    document.getElementById('pull-log').innerHTML = '';
+    const log = document.getElementById('pull-log');
+    log.style.display = 'block';
+    log.innerHTML = '';
     showEl('pull-section');
+    hideEl('pull-dismiss-btn');
+    hideEl('pull-set-active-section');
 
-    /* Nothing else to do here — user clicks "Save as Active Model" to commit */
+    const bar = document.getElementById('pull-progress-bar');
+    bar.style.width = '5%';
+
+    let sseEvent = '';
+
+    function dispatchSSE(eventName, raw) {
+        if (raw === '[DONE]') { addPullLine('Stream closed.', 'success'); return; }
+        let obj;
+        try { obj = JSON.parse(raw); } catch(_) { addPullLine(raw); return; }
+
+        switch (eventName || (obj.status !== undefined ? 'pull_progress' : '')) {
+            case 'pull_progress': {
+                const status    = obj.status    || '';
+                const digest    = obj.digest    || status; /* key per layer */
+                const total     = obj.total     || 0;
+                const completed = obj.completed || 0;
+                let msg = status;
+                if (total > 0) {
+                    const pct = Math.min(99, Math.round((completed / total) * 100));
+                    bar.style.width = pct + '%';
+                    msg += ` — ${pct}% (${fmtSize(completed)} / ${fmtSize(total)})`;
+                } else if (parseFloat(bar.style.width) < 15) {
+                    bar.style.width = '15%';
+                }
+                updateOrAddPullLine(digest, msg, status === 'success' ? 'success' : 'progress');
+                break;
+            }
+            case 'pull_done': {
+                clearPullState();
+                bar.style.width = '100%';
+                bar.classList.remove('progress-bar-striped', 'progress-bar-animated');
+                addPullLine(obj.success ? '✓ Model pulled successfully!' : 'Pull completed.', 'success');
+                showEl('pull-set-active-section');
+                showEl('pull-dismiss-btn');
+                loadInstalledModels();
+                break;
+            }
+            case 'error': {
+                clearPullState();
+                addPullLine('Error: ' + (obj.message || obj.error || raw), 'error');
+                bar.classList.remove('progress-bar-striped', 'progress-bar-animated');
+                bar.classList.add('bg-danger');
+                break;
+            }
+        }
+    }
+
+    try {
+        const response = await fetch('/api/models/pull', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+            body: JSON.stringify({ model: pullName })
+        });
+
+        if (!response.ok) {
+            let errMsg = 'HTTP ' + response.status;
+            try { const e = await response.json(); errMsg = e.error || errMsg; } catch(_) {}
+            addPullLine('Server error: ' + errMsg, 'error');
+            bar.classList.remove('progress-bar-striped', 'progress-bar-animated');
+            bar.classList.add('bg-danger');
+            showEl('pull-dismiss-btn');
+            return;
+        }
+
+        const reader  = response.body.getReader();
+        pullReader    = reader;
+        const decoder = new TextDecoder();
+        let buf = '';
+
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buf += decoder.decode(value, { stream: true });
+            let nl;
+            while ((nl = buf.indexOf('\n')) !== -1) {
+                const line    = buf.slice(0, nl);
+                buf           = buf.slice(nl + 1);
+                const trimmed = line.trim();
+                if (trimmed === '') { sseEvent = ''; }
+                else if (trimmed.startsWith('event:')) { sseEvent = trimmed.slice(6).trim(); }
+                else if (trimmed.startsWith('data:'))  { dispatchSSE(sseEvent, trimmed.slice(5).trim()); }
+            }
+        }
+    } catch(e) {
+        if (e.name !== 'AbortError') addPullLine('Pull error: ' + e.message, 'error');
+        bar.classList.remove('progress-bar-striped', 'progress-bar-animated');
+        bar.classList.add('bg-danger');
+        clearPullState();
+    }
+
+    showEl('pull-dismiss-btn');
+    pullReader = null;
 }
 
 async function setPullModelActive() {
@@ -751,10 +1041,8 @@ async function setPullModelActive() {
             const log = document.getElementById('pull-log');
             log.style.display = 'block';
             log.innerHTML = `
-                <div class="line success">✓ Model ID saved to Redis: ${escHtml(modelId)}</div>
-                <div class="line progress mt-1">To load it into vLLM, restart the container:</div>
-                <div class="line mt-1" style="color:#e6edf3;">docker compose --env-file 5090.env restart internal-vllm</div>
-                <div class="line progress mt-1">Or set VLLM_MODEL=${escHtml(modelId)} in your .env and rebuild.</div>`;
+                <div class="line success">✓ Active model set to: ${escHtml(modelId)}</div>
+                <div class="line progress mt-1">New chats will use this model. No restart needed.</div>`;
         } else {
             alert('Failed: ' + (data.error || 'Unknown error'));
         }
@@ -766,20 +1054,9 @@ async function setPullModelActive() {
     }
 }
 
-function copyRestartCmd() {
-    const modelId = document.getElementById('pull-model-name').textContent;
-    const cmd = `VLLM_MODEL="${modelId}" docker compose --env-file 5090.env up -d internal-vllm`;
-    navigator.clipboard.writeText(cmd).then(() => {
-        const btn = event.target.closest('button');
-        const orig = btn.innerHTML;
-        btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Copied!';
-        setTimeout(() => { btn.innerHTML = orig; }, 2000);
-    });
-}
 
-function _startPull_sseNotUsed(pullName) {
-    /* SSE pull not used in vLLM mode — vLLM downloads models at startup */
-    let sseEvent = '';   // kept for reference
+async function _startPull_dead(pullName) {
+    let sseEvent = '';
 
     function dispatchSSE(eventName, raw) {
         // Final stream marker - not JSON
@@ -1047,6 +1324,136 @@ async function resetConfig() {
 async function adminLogout() {
     await fetch('/api/auth/logout', {method:'POST'});
     window.location.href = '/static/login.html';
+}
+
+// ─── Calibrate Hardware ───────────────────────────────────────────────────────
+async function runCalibrate() {
+    const btn = document.getElementById('calibrate-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Detecting...';
+
+    hideEl('cal-error');
+    hideEl('cal-result');
+    showEl('cal-loading');
+
+    try {
+        const r  = await fetch('/api/hardware');
+        const hw = await r.json();
+        hideEl('cal-loading');
+
+        if (!hw.found) {
+            const el = document.getElementById('cal-error');
+            el.textContent = 'Hardware info not yet available — vLLM may still be starting up. Try again in a few seconds.';
+            showEl('cal-error');
+            return;
+        }
+
+        renderHardwareCards(hw);
+        renderRecommendations(hw);
+        showEl('cal-result');
+    } catch(e) {
+        hideEl('cal-loading');
+        const el = document.getElementById('cal-error');
+        el.textContent = 'Detection failed: ' + e.message;
+        showEl('cal-error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-search me-1"></i>Detect &amp; Calibrate';
+    }
+}
+
+function renderHardwareCards(hw) {
+    const isGpu = hw.device === 'gpu';
+    document.getElementById('cal-hw-cards').innerHTML = `
+        <div class="col-sm-6 col-lg-3">
+            <div class="section-card mb-0 text-center p-3">
+                <div class="mb-1"><i class="bi bi-${isGpu ? 'gpu-card text-success' : 'cpu text-warning'}" style="font-size:1.5rem;"></i></div>
+                <div style="font-size:.78rem;color:#8b949e;">Device</div>
+                <div class="fw-bold">${isGpu ? 'GPU' : 'CPU'}</div>
+            </div>
+        </div>
+        ${isGpu ? `
+        <div class="col-sm-6 col-lg-3">
+            <div class="section-card mb-0 text-center p-3">
+                <div class="mb-1"><i class="bi bi-memory text-primary" style="font-size:1.5rem;"></i></div>
+                <div style="font-size:.78rem;color:#8b949e;">GPU VRAM</div>
+                <div class="fw-bold">${hw.gpu_vram_gb} GB</div>
+                <div style="font-size:.75rem;color:#8b949e;">${escHtml(hw.gpu_name)}</div>
+            </div>
+        </div>` : ''}
+        <div class="col-sm-6 col-lg-3">
+            <div class="section-card mb-0 text-center p-3">
+                <div class="mb-1"><i class="bi bi-cpu text-secondary" style="font-size:1.5rem;"></i></div>
+                <div style="font-size:.78rem;color:#8b949e;">CPU Cores</div>
+                <div class="fw-bold">${hw.cpu_cores}</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="section-card mb-0 text-center p-3">
+                <div class="mb-1"><i class="bi bi-device-hdd text-secondary" style="font-size:1.5rem;"></i></div>
+                <div style="font-size:.78rem;color:#8b949e;">System RAM</div>
+                <div class="fw-bold">${hw.ram_gb} GB</div>
+            </div>
+        </div>`;
+}
+
+function calcRecommendations(hw) {
+    if (hw.device !== 'gpu') {
+        const usableRam = Math.floor((hw.ram_gb || 8) * 0.6);
+        let numCtx = 2048;
+        if (usableRam >= 24) numCtx = 16384;
+        else if (usableRam >= 12) numCtx = 8192;
+        else if (usableRam >= 6)  numCtx = 4096;
+        return {
+            NVIDIA_VISIBLE_DEVICES: 'none',
+            OLLAMA_NUM_GPU:         '0',
+            OLLAMA_NUM_THREAD:      String(hw.cpu_cores || 4),
+            OLLAMA_MMAP:            'true',
+            OLLAMA_CPU:             String(hw.cpu_cores || 4),
+            OLLAMA_MEMORY:          Math.floor((hw.ram_gb || 8) * 0.7) + 'G',
+            MODEL_NUM_CTX:          String(numCtx),
+            note: 'CPU mode — use a small quantised model (Q4_K_M, 3B–7B). Flash attention disabled.'
+        };
+    }
+
+    const vram = hw.gpu_vram_gb || 0;
+    let numCtx, memory;
+    if (vram >= 20) { numCtx = 32768; memory = Math.floor(vram * 0.95) + 'G'; }
+    else if (vram >= 12) { numCtx = 16384; memory = Math.floor(vram * 0.95) + 'G'; }
+    else if (vram >= 8)  { numCtx = 8192;  memory = Math.floor(vram * 0.92) + 'G'; }
+    else                 { numCtx = 4096;  memory = Math.floor(vram * 0.90) + 'G'; }
+
+    return {
+        NVIDIA_VISIBLE_DEVICES: 'all',
+        OLLAMA_NUM_GPU:         '999',
+        OLLAMA_FLASH_ATTENTION: 'true',
+        OLLAMA_MMAP:            'false',
+        OLLAMA_CPU:             '4.0',
+        OLLAMA_MEMORY:          memory,
+        MODEL_NUM_CTX:          String(numCtx),
+        note: null
+    };
+}
+
+function renderRecommendations(hw) {
+    const rec = calcRecommendations(hw);
+    const lines = ['# Paste into your .env — takes effect on next: docker compose up -d', ''];
+    const skip = new Set(['note']);
+    Object.entries(rec).forEach(([k, v]) => {
+        if (!skip.has(k)) lines.push(`${k}=${v}`);
+    });
+    if (rec.note) lines.push('', '# Note: ' + rec.note);
+    document.getElementById('cal-recommendations').textContent = lines.join('\n');
+}
+
+function copyCalibration() {
+    const text = document.getElementById('cal-recommendations').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = event.target.closest('button');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Copied!';
+        setTimeout(() => { btn.innerHTML = orig; }, 2000);
+    });
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────

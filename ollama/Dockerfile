@@ -1,15 +1,13 @@
 FROM ollama/ollama:latest
 
-# Create necessary directories
-RUN mkdir -p /root/.ollama/models
-RUN mkdir -p /root/.ollama/scripts
+# redis-cli for writing hardware info to Redis at startup
+RUN apt-get update -qq && \
+    apt-get install -y --no-install-recommends redis-tools && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy the initialization script and make it executable
-COPY scripts/init-ollama.sh /root/.ollama/scripts/init-ollama.sh
-RUN chmod +x /root/.ollama/scripts/init-ollama.sh
+COPY scripts/start-ollama.sh /start-ollama.sh
+RUN chmod +x /start-ollama.sh
 
-# Copy the Modelfile template
-#COPY scripts/Modelfile /root/.ollama/scripts/Modelfile
+EXPOSE 11434
 
-# Set the entrypoint to our initialization script
-ENTRYPOINT ["/root/.ollama/scripts/init-ollama.sh"]
+ENTRYPOINT ["/start-ollama.sh"]

@@ -110,4 +110,23 @@ int chat_redis_set_config_field(redisContext *c, ngx_log_t *log,
 /* Delete the entire config key (resets to nginx.conf defaults). */
 int chat_redis_clear_config(redisContext *c, ngx_log_t *log);
 
+/* ── Hardware info (Redis hash chat:hardware) ────────────────── */
+
+#define CHAT_HARDWARE_KEY "chat:hardware"
+
+typedef struct {
+    char device[16];      /* "gpu" or "cpu" */
+    char gpu_count[8];
+    char gpu_name[128];
+    char gpu_vram_gb[16];
+    char cpu_cores[8];
+    char ram_gb[16];
+    char as_of[32];
+    int  found;
+} chat_redis_hardware_t;
+
+/* Read hardware info written by the vLLM container at startup. */
+void chat_redis_get_hardware(redisContext *c, ngx_log_t *log,
+    chat_redis_hardware_t *out);
+
 #endif /* CHAT_REDIS_H */

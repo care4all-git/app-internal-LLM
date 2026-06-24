@@ -74,8 +74,8 @@ chat_models_list_json(const char *ollama_url, ngx_log_t *log)
     char          url[512];
     long          http_code = 0;
 
-    /* OpenAI /v1/models — works with vLLM, llama-server, Ollama /v1 */
-    snprintf(url, sizeof(url), "%s/v1/models", ollama_url);
+    /* Ollama native tags endpoint */
+    snprintf(url, sizeof(url), "%s/api/tags", ollama_url);
 
     curl = curl_easy_init();
     if (!curl) return NULL;
@@ -462,50 +462,14 @@ chat_hf_files_json(const char *model_id,
     out      = cJSON_CreateArray();
 
     if (siblings && cJSON_IsArray(siblings)) {
-        /* For vLLM: count total size of safetensors shards and surface quant variants.
-           We show safetensors shards grouped by prefix (AWQ, GPTQ, FP8, base),
-           plus any GGUF files that happen to be in the repo. */
-        double total_size  = 0;
-        int    shard_count = 0;
-
+        /* Ollama only supports GGUF — list each .gguf file individually */
         n = cJSON_GetArraySize(siblings);
         for (i = 0; i < n; i++) {
-            cJSON  *s  = cJSON_GetArrayItem(siblings, i);
-            cJSON  *fn = cJSON_GetObjectItem(s, "rfilename");
-            cJSON  *sz = cJSON_GetObjectItem(s, "size");
+            cJSON      *s    = cJSON_GetArrayItem(siblings, i);
+            cJSON      *fn   = cJSON_GetObjectItem(s, "rfilename");
+            cJSON      *sz   = cJSON_GetObjectItem(s, "size");
             const char *name;
-            size_t flen;
-
-            if (!fn || !fn->valuestring) continue;
-            name = fn->valuestring;
-            flen = strlen(name);
-
-            /* Skip non-weight files */
-            if (strstr(name, ".safetensors") || strstr(name, ".gguf")) {
-                if (sz) total_size += sz->valuedouble;
-                if (strstr(name, ".safetensors")) shard_count++;
-            }
-        }
-
-        /* Return a single entry for the whole repo (vLLM loads the full repo) */
-        if (shard_count > 0 || total_size > 0) {
-            cJSON *entry = cJSON_CreateObject();
-            cJSON_AddStringToObject(entry, "filename",   model_id);
-            cJSON_AddNumberToObject(entry, "size",       total_size);
-            cJSON_AddNumberToObject(entry, "shards",     (double)shard_count);
-            /* pull_name is the full HF model ID — vLLM loads this directly */
-            cJSON_AddStringToObject(entry, "pull_name",  model_id);
-            cJSON_AddStringToObject(entry, "format",     "safetensors");
-            cJSON_AddItemToArray(out, entry);
-        }
-
-        /* Also list any GGUF files (for reference) */
-        for (i = 0; i < n; i++) {
-            cJSON  *s  = cJSON_GetArrayItem(siblings, i);
-            cJSON  *fn = cJSON_GetObjectItem(s, "rfilename");
-            cJSON  *sz = cJSON_GetObjectItem(s, "size");
-            const char *name;
-            size_t flen;
+            size_t      flen;
 
             if (!fn || !fn->valuestring) continue;
             name = fn->valuestring;
@@ -517,9 +481,7 @@ chat_hf_files_json(const char *model_id,
                 snprintf(pull_name, sizeof(pull_name),
                     "hf.co/%s:%s", model_id, name);
                 cJSON_AddStringToObject(entry, "filename",  name);
-                cJSON_AddNumberToObject(entry, "size",
-                    sz ? sz->valuedouble : 0);
-                cJSON_AddNumberToObject(entry, "shards",    1.0);
+                cJSON_AddNumberToObject(entry, "size",      sz ? sz->valuedouble : 0);
                 cJSON_AddStringToObject(entry, "pull_name", pull_name);
                 cJSON_AddStringToObject(entry, "format",    "gguf");
                 cJSON_AddItemToArray(out, entry);

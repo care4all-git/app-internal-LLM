@@ -2,7 +2,27 @@
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    window.chat = new InternalChat();
+    try {
+        window.chat = new InternalChat();
+    } catch(e) {
+        console.error('InternalChat init failed:', e);
+        document.getElementById('status').textContent = 'Init error: ' + e.message;
+    }
+
+    // Show active model indicator
+    fetch('/api/config')
+        .then(r => r.json())
+        .then(d => {
+            const name = d.model_name || d.effective?.model_name;
+            const el = document.getElementById('active-model-indicator');
+            if (el && name) {
+                const short = name.split('/').pop().replace(/\.gguf$/i, '');
+                el.textContent = '⬡ ' + short;
+                el.title = name + ' — change in Models page';
+                el.style.display = '';
+            }
+        })
+        .catch(() => {});
 });
 
 // Chat management functions

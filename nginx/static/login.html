@@ -68,10 +68,12 @@ async function doLogin(e) {
     }
 }
 
-// If already admin, redirect immediately
-fetch('/api/auth/status').then(r=>r.json()).then(d=>{
-    if(d.type==='admin') window.location.href='/static/models.html';
-});
+// If already admin, redirect immediately (skip if arriving from logout)
+if (!document.referrer.includes('/static/models.html')) {
+    fetch('/api/auth/status').then(r=>r.json()).then(d=>{
+        if(d.type==='admin') window.location.href='/static/models.html';
+    });
+}
 </script>
 </body>
 </html>

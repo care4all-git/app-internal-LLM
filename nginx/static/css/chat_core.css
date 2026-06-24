@@ -10,7 +10,7 @@
     --success-color: #28a745;
     --warning-color: #ffc107;
     --danger-color: #dc3545;
-    --sidebar-width: 280px;
+    --sidebar-width: 260px;
 }
 
 body {
@@ -23,10 +23,10 @@ body {
     overflow: hidden;
 }
 
-/* App layout */
+/* App layout — full height, no navbar offset */
 .app-container {
     display: flex;
-    height: calc(100vh - 56px);
+    height: 100vh;
 }
 
 /* Main content */

@@ -6,7 +6,6 @@
 #include <ngx_http.h>
 #include <hiredis/hiredis.h>
 
-#define CHAT_AUTH_MAX_USERS  3
 #define CHAT_AUTH_USER_TTL   3600    /* seconds before slot freed */
 #define CHAT_AUTH_ADMIN_TTL  86400   /* admin session TTL */
 #define CHAT_AUTH_USERS_KEY  "auth:users"
@@ -17,7 +16,6 @@ typedef enum {
     CHAT_AUTH_NEW   = 1,  /* new slot assigned */
     CHAT_AUTH_USER  = 2,  /* existing anonymous user */
     CHAT_AUTH_ADMIN = 3,  /* valid admin session */
-    CHAT_AUTH_FULL  = 4,  /* server at capacity */
 } chat_auth_type_t;
 
 typedef struct {

@@ -65,11 +65,7 @@ class InternalChat {
             stopButton.addEventListener('click', () => this.ollama.stopStream());
         }
         
-        // Sidebar toggle
-        const sidebarToggle = document.getElementById('sidebar-toggle');
-        if (sidebarToggle) {
-            sidebarToggle.addEventListener('click', () => this.ui.toggleSidebar());
-        }
+        // Sidebar toggle handled by inline onclick="toggleSidebar()" on the buttons
         
         // Chat search
         const chatSearch = document.getElementById('chat-search');

@@ -15,8 +15,10 @@ class ChatUI {
     
     toggleSidebar() {
         const sidebar = document.getElementById('sidebar');
+        const fab     = document.getElementById('sidebar-fab');
         if (sidebar) {
-            sidebar.classList.toggle('collapsed');
+            const collapsed = sidebar.classList.toggle('collapsed');
+            if (fab) fab.classList.toggle('visible', collapsed);
         }
     }
     
@@ -79,29 +81,26 @@ class ChatUI {
     }
     
     // UI Update Methods
+    newChatButton() {
+        const btn = document.createElement('div');
+        btn.className = 'new-chat-item';
+        btn.innerHTML = '<i class="bi bi-plus-circle"></i><span>New Chat</span>';
+        btn.onclick = () => { if (window.chat) window.chat.createNewChat(); };
+        return btn;
+    }
+
     updateChatList() {
         const chatList = document.getElementById('chat-list');
         if (!chatList) return;
-        
+
+        chatList.innerHTML = '';
+        chatList.appendChild(this.newChatButton());
+
         const chatsArray = Array.from(this.chatInstance.chats.values())
             .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-        
-        if (chatsArray.length === 0) {
-            chatList.innerHTML = `
-                <div class="text-center text-muted p-3">
-                    <i class="bi bi-chat-dots-fill"></i>
-                    <p class="mb-0 mt-2">No chats yet</p>
-                    <small>Start a new conversation</small>
-                </div>
-            `;
-            return;
-        }
-        
-        chatList.innerHTML = '';
-        
+
         chatsArray.forEach(chat => {
-            const chatItem = this.createChatListItem(chat);
-            chatList.appendChild(chatItem);
+            chatList.appendChild(this.createChatListItem(chat));
         });
     }
     

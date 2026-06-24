@@ -597,6 +597,47 @@ chat_redis_get_config(redisContext *c, ngx_log_t *log,
     freeReplyObject(r);
 }
 
+void
+chat_redis_get_hardware(redisContext *c, ngx_log_t *log,
+    chat_redis_hardware_t *out)
+{
+    redisReply *r;
+    size_t      i;
+
+    memset(out, 0, sizeof(*out));
+
+    r = redisCommand(c, "HGETALL %s", CHAT_HARDWARE_KEY);
+    if (!r || r->type != REDIS_REPLY_ARRAY) {
+        if (r) freeReplyObject(r);
+        return;
+    }
+
+    out->found = (r->elements > 0) ? 1 : 0;
+
+    for (i = 0; i + 1 < r->elements; i += 2) {
+        const char *field = r->element[i]->str;
+        const char *value = r->element[i + 1]->str;
+        if (!field || !value) continue;
+
+        if      (strcmp(field, "device")      == 0)
+            strncpy(out->device,      value, sizeof(out->device)      - 1);
+        else if (strcmp(field, "gpu_count")   == 0)
+            strncpy(out->gpu_count,   value, sizeof(out->gpu_count)   - 1);
+        else if (strcmp(field, "gpu_name")    == 0)
+            strncpy(out->gpu_name,    value, sizeof(out->gpu_name)    - 1);
+        else if (strcmp(field, "gpu_vram_gb") == 0)
+            strncpy(out->gpu_vram_gb, value, sizeof(out->gpu_vram_gb) - 1);
+        else if (strcmp(field, "cpu_cores")   == 0)
+            strncpy(out->cpu_cores,   value, sizeof(out->cpu_cores)   - 1);
+        else if (strcmp(field, "ram_gb")      == 0)
+            strncpy(out->ram_gb,      value, sizeof(out->ram_gb)      - 1);
+        else if (strcmp(field, "as_of")       == 0)
+            strncpy(out->as_of,       value, sizeof(out->as_of)       - 1);
+    }
+
+    freeReplyObject(r);
+}
+
 int
 chat_redis_set_config_field(redisContext *c, ngx_log_t *log,
     const char *field, const char *value)

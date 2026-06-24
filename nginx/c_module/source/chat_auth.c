@@ -210,18 +210,12 @@ chat_auth_identify(ngx_http_request_t *r,
         /* Cookie was invalid/expired — fall through to create new */
     }
 
-    /* ── Try to assign a new slot ── */
+    /* ── Assign a new slot (no capacity limit) ── */
     chat_auth_cleanup_users(rc, r->connection->log);
 
     rep = redisCommand(rc, "HLEN %s", CHAT_AUTH_USERS_KEY);
     int active = (rep && rep->type == REDIS_REPLY_INTEGER) ? (int)rep->integer : 0;
     if (rep) freeReplyObject(rep);
-
-    if (active >= CHAT_AUTH_MAX_USERS) {
-        info->type        = CHAT_AUTH_FULL;
-        info->total_users = active;
-        return NGX_OK;
-    }
 
     /* Generate new uid */
     chat_auth_gen_token(new_uid, 32);
